@@ -1,13 +1,8 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PaymentOptions } from './PaymentOptions';
-import { History } from './History';
 import type { Transaction } from '@shared/schema';
 
 interface ProductMessage {
@@ -27,8 +22,6 @@ interface ProductMessage {
 
 export function UserProducts() {
   const { user } = useAuth();
-  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
 
   const { data: transactions, isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
@@ -51,37 +44,7 @@ export function UserProducts() {
           <h1 className="text-2xl font-bold text-white">My Products</h1>
           <p className="text-gray-400">Manage your subscriptions and purchases</p>
         </div>
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          <Button
-            onClick={() => setShowPaymentOptions(true)}
-            className="bg-accent-blue hover:bg-accent-blue-dark"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            Add Funds
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowHistory(true)}
-            className="bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
-          >
-            <i className="fas fa-history mr-2"></i>
-            View History
-          </Button>
-        </div>
       </div>
-
-      {/* Balance Card */}
-      <Card className="bg-gradient-to-r from-accent-blue to-purple-600 border-0">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between text-white">
-            <div>
-              <p className="text-sm opacity-90">Available Balance</p>
-              <p className="text-3xl font-bold">${user?.balance || '0.00'}</p>
-            </div>
-            <i className="fas fa-wallet text-4xl opacity-70"></i>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Active Subscriptions */}
       <Card className="bg-dark-card/50 border-gray-700">
@@ -170,20 +133,10 @@ export function UserProducts() {
       {/* Recent Activity */}
       <Card className="bg-dark-card/50 border-gray-700">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white flex items-center">
-              <i className="fas fa-history mr-2 text-accent-blue"></i>
-              Recent Activity
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHistory(true)}
-              className="text-accent-blue hover:text-accent-blue-dark"
-            >
-              View All
-            </Button>
-          </div>
+          <CardTitle className="text-white flex items-center">
+            <i className="fas fa-history mr-2 text-accent-blue"></i>
+            Recent Activity
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {transactionsLoading ? (
@@ -200,7 +153,7 @@ export function UserProducts() {
           ) : (
             <div className="space-y-3">
               {recentTransactions.map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                <div key={transaction._id} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                       transaction.type === 'deposit' ? 'bg-green-500/20' :
@@ -216,7 +169,7 @@ export function UserProducts() {
                     </div>
                     <div>
                       <p className="text-white text-sm font-medium capitalize">{transaction.type}</p>
-                      <p className="text-gray-400 text-xs">{new Date(transaction.createdAt).toLocaleDateString()}</p>
+                      <p className="text-gray-400 text-xs">{transaction.createdAt ? new Date(transaction.createdAt.toString()).toLocaleDateString() : 'N/A'}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -238,26 +191,6 @@ export function UserProducts() {
           )}
         </CardContent>
       </Card>
-
-      {/* Payment Options Modal */}
-      <Dialog open={showPaymentOptions} onOpenChange={setShowPaymentOptions}>
-        <DialogContent className="bg-dark-card border-gray-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Add Funds to Wallet</DialogTitle>
-          </DialogHeader>
-          <PaymentOptions />
-        </DialogContent>
-      </Dialog>
-
-      {/* History Modal */}
-      <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent className="bg-dark-card border-gray-700 text-white max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Transaction History</DialogTitle>
-          </DialogHeader>
-          <History />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
