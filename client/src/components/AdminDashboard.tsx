@@ -239,7 +239,15 @@ export function AdminDashboard() {
       {/* Header - Mobile Responsive */}
       <div className="bg-dark-card/50 border border-gray-700 rounded-lg p-4">
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Admin Dashboard</h1>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-accent-blue/20 rounded-full flex items-center justify-center">
+              <i className="fas fa-shield-alt text-accent-blue"></i>
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Admin Dashboard</h1>
+              <p className="text-gray-400 text-sm">System administration panel</p>
+            </div>
+          </div>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             <Button
               onClick={() => setCurrentView('store')}
@@ -257,6 +265,18 @@ export function AdminDashboard() {
             >
               <i className="fas fa-paper-plane mr-2"></i>
               Send Message
+            </Button>
+            <Button
+              onClick={() => {
+                localStorage.removeItem('admin_token');
+                window.location.href = '/';
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30 w-full sm:w-auto"
+            >
+              <i className="fas fa-sign-out-alt mr-2"></i>
+              Logout
             </Button>
           </div>
         </div>
