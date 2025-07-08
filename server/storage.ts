@@ -1,1 +1,1 @@
-export { storage, IStorage } from './mongo-storage';
+export { storage } from './mongo-storage';
