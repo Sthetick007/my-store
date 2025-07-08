@@ -70,15 +70,22 @@ export function setupAdminAuth(app: express.Express) {
 // Middleware to verify admin authentication
 export function isAdminAuthenticated(req: any, res: any, next: any) {
   const auth = req.headers.authorization;
+  console.log('🔐 Admin auth check - Authorization header:', auth ? 'present' : 'missing');
+  
   if (!auth) {
+    console.log('❌ No authorization header');
     return res.status(401).json({ success: false, message: 'No token provided' });
   }
 
   try {
     const token = auth.replace('Bearer ', '');
+    console.log('🔑 Token extracted:', token ? 'present' : 'empty');
+    
     const payload = jwt.verify(token, JWT_SECRET) as any;
+    console.log('✅ Token payload:', payload);
     
     if (!payload.isAdmin) {
+      console.log('❌ Token is not admin');
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
     
@@ -87,8 +94,10 @@ export function isAdminAuthenticated(req: any, res: any, next: any) {
       isAdmin: true
     };
     
+    console.log('✅ Admin authenticated successfully');
     next();
   } catch (error) {
+    console.error('❌ Token verification failed:', error);
     return res.status(401).json({ success: false, message: 'Invalid token' });
   }
 }

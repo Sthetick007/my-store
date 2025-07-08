@@ -2,8 +2,26 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const contentType = res.headers.get('content-type');
+    let errorMessage = res.statusText;
+    
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorData.error || res.statusText;
+      } catch (e) {
+        errorMessage = res.statusText;
+      }
+    } else {
+      const text = await res.text();
+      if (text.includes('<!DOCTYPE html>')) {
+        errorMessage = `Server returned HTML instead of JSON. Status: ${res.status}`;
+      } else {
+        errorMessage = text || res.statusText;
+      }
+    }
+    
+    throw new Error(`${res.status}: ${errorMessage}`);
   }
 }
 
@@ -29,7 +47,17 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
-  return await res.json();
+  
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return await res.json();
+  } else {
+    const text = await res.text();
+    if (text.includes('<!DOCTYPE html>')) {
+      throw new Error('Server returned HTML instead of JSON. Check authentication.');
+    }
+    throw new Error('Invalid response format');
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

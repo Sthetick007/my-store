@@ -12,6 +12,7 @@ const router = Router();
 router.get('/users', isAdminAuthenticated, async (req: any, res) => {
   try {
     console.log('📋 Admin fetching users...');
+    console.log('🔐 Admin auth payload:', req.admin);
     const users = await storage.getAllUsers();
     console.log('👥 Found users:', users.length);
     console.log('📊 Users data:', users);
@@ -39,6 +40,23 @@ router.get('/users/:id', isAdminAuthenticated, async (req: any, res) => {
   }
 });
 
+// Get single user by Telegram ID
+router.get('/users/telegram/:telegramId', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const telegramId = req.params.telegramId;
+    const user = await storage.getUserByTelegramId(telegramId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("Error fetching user by telegram ID:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch user" });
+  }
+});
+
 // Update user balance
 router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => {
   try {
@@ -59,6 +77,39 @@ router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => 
     console.log(`Admin updated user ${userId} balance to ${balance}. Reason: ${reason}`);
     
     res.json({ message: "User balance updated successfully", user });
+  } catch (error) {
+    console.error("Error updating user balance:", error);
+    res.status(500).json({ message: "Failed to update user balance" });
+  }
+});
+
+// Update user balance by telegram ID
+router.put('/users/telegram/:telegramId/balance', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const telegramId = req.params.telegramId;
+    const { balance, reason } = req.body;
+    
+    if (typeof balance !== 'number') {
+      return res.status(400).json({ message: "Balance must be a number" });
+    }
+    
+    // First get the user by telegram ID
+    const user = await storage.getUserByTelegramId(telegramId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Then update the balance using the user ID
+    const updatedUser = await storage.updateUserBalance(user.id, balance);
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Failed to update user balance" });
+    }
+    
+    // Log the balance change (optional)
+    console.log(`Admin updated user ${telegramId} (${user.id}) balance to ${balance}. Reason: ${reason}`);
+    
+    res.json({ message: "User balance updated successfully", user: updatedUser });
   } catch (error) {
     console.error("Error updating user balance:", error);
     res.status(500).json({ message: "Failed to update user balance" });

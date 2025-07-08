@@ -48,13 +48,13 @@ export function SimpleAdminDashboard() {
   const [productToDelete, setProductToDelete] = useState<any>(null);
 
   const [balanceForm, setBalanceForm] = useState({
-    userId: '',
+    telegramId: '',
     newBalance: '',
     reason: ''
   });
 
   const [sendProductForm, setSendProductForm] = useState({
-    userId: '',
+    telegramId: '',
     productId: '',
     username: '',
     password: '',
@@ -63,7 +63,7 @@ export function SimpleAdminDashboard() {
 
   // New states for user balance management
   const [userBalanceForm, setUserBalanceForm] = useState({
-    userId: '',
+    telegramId: '',
     fetchedBalance: null as number | null,
     addAmount: '',
     removeAmount: ''
@@ -93,7 +93,7 @@ export function SimpleAdminDashboard() {
     queryFn: async () => {
       console.log('🔍 Fetching users from admin API...');
       const adminToken = localStorage.getItem('admin_token');
-      console.log('🔐 Admin token:', adminToken ? 'present' : 'missing');
+      console.log('🔐 Admin token for users:', adminToken ? `${adminToken.substring(0, 20)}...` : 'missing');
       const response = await apiRequest('GET', '/api/admin/users', undefined, {
         Authorization: `Bearer ${adminToken}`
       });
@@ -215,7 +215,7 @@ export function SimpleAdminDashboard() {
   const updateBalanceMutation = useMutation({
     mutationFn: async (data: typeof balanceForm) => {
       const token = localStorage.getItem('admin_token');
-      return await apiRequest('PUT', `/api/admin/users/${data.userId}/balance`, {
+      return await apiRequest('PUT', `/api/admin/users/telegram/${data.telegramId}/balance`, {
         balance: parseFloat(data.newBalance),
         reason: data.reason
       }, {
@@ -225,7 +225,7 @@ export function SimpleAdminDashboard() {
     onSuccess: () => {
       toast({ title: 'User balance updated successfully!' });
       setShowEditBalance(false);
-      setBalanceForm({ userId: '', newBalance: '', reason: '' });
+      setBalanceForm({ telegramId: '', newBalance: '', reason: '' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
@@ -284,7 +284,7 @@ export function SimpleAdminDashboard() {
     mutationFn: async (data: typeof sendProductForm) => {
       const token = localStorage.getItem('admin_token');
       return await apiRequest('POST', '/api/admin/send-product', {
-        userId: data.userId,
+        telegramId: data.telegramId,
         productId: data.productId,
         username: data.username,
         password: data.password,
@@ -297,7 +297,7 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Product sent successfully!' });
       setShowSendProduct(false);
       setSendProductForm({
-        userId: '',
+        telegramId: '',
         productId: '',
         username: '',
         password: '',
@@ -315,20 +315,28 @@ export function SimpleAdminDashboard() {
 
   // Fetch User Balance Mutation
   const fetchUserBalanceMutation = useMutation({
-    mutationFn: async (userId: string) => {
+    mutationFn: async (telegramId: string) => {
       const token = localStorage.getItem('admin_token');
-      const response = await apiRequest('GET', `/api/admin/user/${userId}`, undefined, {
+      const url = `/api/admin/users/telegram/${telegramId}`;
+      console.log('🔍 Fetching user balance for telegram ID:', telegramId);
+      console.log('� Request URL:', url);
+      console.log('�🔐 Admin token:', token ? `${token.substring(0, 20)}...` : 'missing');
+      
+      const response = await apiRequest('GET', url, undefined, {
         'Authorization': `Bearer ${token}`
       });
+      console.log('✅ User balance response:', response);
       return response.user;
     },
     onSuccess: (user) => {
+      console.log('✅ User balance fetched successfully:', user);
       setUserBalanceForm(prev => ({ ...prev, fetchedBalance: user.balance }));
       setShowFetchBalance(false);
       setShowUserBalance(true);
       toast({ title: 'User balance fetched successfully!' });
     },
     onError: (error: any) => {
+      console.error('❌ Error fetching user balance:', error);
       toast({ 
         title: 'Error fetching user balance', 
         description: error.message || 'Failed to fetch user balance',
@@ -339,11 +347,11 @@ export function SimpleAdminDashboard() {
 
   // Add Balance Mutation
   const addBalanceMutation = useMutation({
-    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string; amount: number }) => {
       const token = localStorage.getItem('admin_token');
       const currentBalance = userBalanceForm.fetchedBalance || 0;
       const newBalance = currentBalance + amount;
-      return await apiRequest('PUT', `/api/admin/user/${userId}/balance`, {
+      return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
         balance: newBalance,
         reason: `Add balance: +$${amount}`
       }, {
@@ -370,11 +378,11 @@ export function SimpleAdminDashboard() {
 
   // Remove Balance Mutation
   const removeBalanceMutation = useMutation({
-    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string; amount: number }) => {
       const token = localStorage.getItem('admin_token');
       const currentBalance = userBalanceForm.fetchedBalance || 0;
       const newBalance = Math.max(0, currentBalance - amount);
-      return await apiRequest('PUT', `/api/admin/user/${userId}/balance`, {
+      return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
         balance: newBalance,
         reason: `Remove balance: -$${amount}`
       }, {
@@ -950,13 +958,13 @@ export function SimpleAdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="sendUserId" className="text-gray-400">User ID</Label>
+              <Label htmlFor="sendTelegramId" className="text-gray-400">Telegram ID</Label>
               <Input
-                id="sendUserId"
-                value={sendProductForm.userId}
-                onChange={(e) => setSendProductForm({ ...sendProductForm, userId: e.target.value })}
+                id="sendTelegramId"
+                value={sendProductForm.telegramId}
+                onChange={(e) => setSendProductForm({ ...sendProductForm, telegramId: e.target.value })}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="Enter user ID"
+                placeholder="Enter telegram ID"
               />
             </div>
 
@@ -1044,13 +1052,13 @@ export function SimpleAdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="userId" className="text-gray-400">User ID</Label>
+              <Label htmlFor="telegramId" className="text-gray-400">Telegram ID</Label>
               <Input
-                id="userId"
-                value={balanceForm.userId}
-                onChange={(e) => setBalanceForm({ ...balanceForm, userId: e.target.value })}
+                id="telegramId"
+                value={balanceForm.telegramId}
+                onChange={(e) => setBalanceForm({ ...balanceForm, telegramId: e.target.value })}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="Enter user ID"
+                placeholder="Enter telegram ID"
               />
             </div>
             <div>
@@ -1103,19 +1111,19 @@ export function SimpleAdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="fetchUserId" className="text-gray-400">User ID</Label>
+              <Label htmlFor="fetchTelegramId" className="text-gray-400">Telegram ID</Label>
               <Input
-                id="fetchUserId"
-                value={userBalanceForm.userId}
-                onChange={(e) => setUserBalanceForm({ ...userBalanceForm, userId: e.target.value })}
+                id="fetchTelegramId"
+                value={userBalanceForm.telegramId}
+                onChange={(e) => setUserBalanceForm({ ...userBalanceForm, telegramId: e.target.value })}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="Enter user ID"
+                placeholder="Enter telegram ID"
               />
             </div>
             <div className="flex space-x-2">
               <Button
-                onClick={() => fetchUserBalanceMutation.mutate(userBalanceForm.userId)}
-                disabled={fetchUserBalanceMutation.isPending || !userBalanceForm.userId}
+                onClick={() => fetchUserBalanceMutation.mutate(userBalanceForm.telegramId)}
+                disabled={fetchUserBalanceMutation.isPending || !userBalanceForm.telegramId}
                 className="flex-1 bg-accent-blue hover:bg-accent-blue-dark"
               >
                 {fetchUserBalanceMutation.isPending ? 'Fetching...' : 'Fetch Balance'}
@@ -1140,7 +1148,7 @@ export function SimpleAdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-gray-800/50 rounded-lg">
-              <p className="text-gray-400">User ID: {userBalanceForm.userId}</p>
+              <p className="text-gray-400">Telegram ID: {userBalanceForm.telegramId}</p>
               <p className="text-white font-semibold">Current Balance:</p>
               <p className="text-accent-blue text-2xl">${userBalanceForm.fetchedBalance}</p>
             </div>
@@ -1156,8 +1164,8 @@ export function SimpleAdminDashboard() {
                   placeholder="Amount to add"
                 />
                 <Button
-                  onClick={() => addBalanceMutation.mutate({ 
-                    userId: userBalanceForm.userId, 
+                  onClick={() =>                  addBalanceMutation.mutate({ 
+                    telegramId: userBalanceForm.telegramId, 
                     amount: parseFloat(userBalanceForm.addAmount) 
                   })}
                   disabled={addBalanceMutation.isPending || !userBalanceForm.addAmount}
@@ -1177,8 +1185,8 @@ export function SimpleAdminDashboard() {
                   placeholder="Amount to remove"
                 />
                 <Button
-                  onClick={() => removeBalanceMutation.mutate({ 
-                    userId: userBalanceForm.userId, 
+                  onClick={() =>                  removeBalanceMutation.mutate({ 
+                    telegramId: userBalanceForm.telegramId, 
                     amount: parseFloat(userBalanceForm.removeAmount) 
                   })}
                   disabled={removeBalanceMutation.isPending || !userBalanceForm.removeAmount}
