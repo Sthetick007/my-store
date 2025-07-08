@@ -128,7 +128,9 @@ export class MongoStorage implements IStorage {
   // Cart operations
   async getCartItems(userId: string): Promise<(CartType & { product: ProductType })[]> {
     const cartItems = await Cart.find({ userId }).populate('productId');
-    return cartItems.map((item: any) => ({
+    // Exclude any cart items whose product was deleted (populate gives null)
+    const validItems = cartItems.filter((item: any) => item.productId);
+    return validItems.map((item: any) => ({
       ...this.formatCart(item),
       product: this.formatProduct(item.productId as any)
     }));
@@ -249,17 +251,21 @@ export class MongoStorage implements IStorage {
       category: product.category,
       image_url: product.image_url,
       stock: product.stock,
-      featured: product.featured,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };
   }
 
   private formatCart(cart: any): CartType {
+    // Handle both ObjectId and populated productId document
+    const rawProductId = cart.productId;
+    const productIdStr = rawProductId instanceof mongoose.Types.ObjectId
+      ? rawProductId.toString()
+      : rawProductId?._id?.toString() || '';
     return {
       _id: cart._id.toString(),
       userId: cart.userId,
-      productId: cart.productId.toString(),
+      productId: productIdStr,
       quantity: cart.quantity,
       createdAt: cart.createdAt,
       updatedAt: cart.updatedAt,

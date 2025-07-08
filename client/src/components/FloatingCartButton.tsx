@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { apiRequest } from '@/lib/queryClient';
 import type { CartItem } from '@/types';
 
 interface FloatingCartButtonProps {
@@ -8,8 +9,16 @@ interface FloatingCartButtonProps {
 }
 
 export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
-  const { data: cartItems } = useQuery<CartItem[]>({
+  const token = localStorage.getItem('telegram_token');
+  const { data: cartItems = [] } = useQuery<CartItem[]>({
     queryKey: ['/api/cart'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/cart', undefined, {
+        Authorization: `Bearer ${token}`,
+      });
+      return response.cartItems as CartItem[];
+    },
+    enabled: !!token,
   });
 
   const totalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;

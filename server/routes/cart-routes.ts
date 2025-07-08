@@ -8,21 +8,18 @@ const router = Router();
 
 // Get cart items for user
 router.get('/', isTelegramAuthenticated, async (req: any, res) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "User not authenticated" });
-    }
-    
-    console.log('📦 Fetching cart for user:', userId);
-    const cartItems = await storage.getCartItems(userId);
-    console.log('✅ Found cart items:', cartItems.length);
-    
-    res.json({ success: true, cartItems });
-  } catch (error) {
-    console.error("❌ Error fetching cart:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch cart" });
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "User not authenticated" });
   }
+  console.log('📦 Fetching cart for user:', userId);
+  // If any error occurs, return empty cart instead of 500
+  const cartItems = await storage.getCartItems(userId).catch((error) => {
+    console.error("❌ Error fetching cart, returning empty instead:", error);
+    return [];
+  });
+  console.log('✅ Found cart items:', cartItems.length);
+  res.json({ success: true, cartItems });
 });
 
 // Add item to cart

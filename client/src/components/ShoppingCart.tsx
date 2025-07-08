@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -21,14 +21,18 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
   const { hapticFeedback, showMainButton, hideMainButton } = useTelegram();
   const queryClient = useQueryClient();
 
-  const { data: cartItems, isLoading } = useQuery<CartItem[]>({
+  // Fetch cart items when cart dialog opens (return array directly)
+  const { data: cartItems = [], isLoading } = useQuery<CartItem[]>({
     queryKey: ['/api/cart'],
     queryFn: async () => {
-      return await apiRequest('GET', '/api/cart', undefined, {
-        'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+      const res = await apiRequest('GET', '/api/cart', undefined, {
+        Authorization: `Bearer ${localStorage.getItem('telegram_token')}`,
       });
+      return (res.cartItems as CartItem[]) || [];
     },
     enabled: isOpen,
+    staleTime: 0,           // always refetch when opening
+    refetchOnMount: true,   // ensure data fetch on mount
   });
 
   const updateQuantityMutation = useMutation({
@@ -93,8 +97,14 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
     },
   });
 
-  const totalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const totalPrice = cartItems?.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0) || 0;
+  // Debug: log cart items
+  useEffect(() => {
+    console.log('🛒 ShoppingCart items:', cartItems);
+  }, [cartItems]);
+
+  // Totals for display
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = cartItems.reduce((sum, item) => sum + parseFloat(item.product.price) * item.quantity, 0);
 
   const handleQuantityChange = (id: string, change: number) => {
     const item = cartItems?.find(item => item._id === id);
