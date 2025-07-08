@@ -67,7 +67,7 @@ export default function Home() {
           showAdminSwitch={!isAdminMode && user?.isAdmin}
         />
         
-        <main className="pb-20">
+        <main className="pb-16">
           {renderTabContent()}
         </main>
 
