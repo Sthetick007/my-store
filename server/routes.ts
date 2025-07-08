@@ -2,13 +2,24 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupTelegramAuth, isTelegramAuthenticated } from "./telegramAuth";
+import { setupAdminAuth, isAdminAuthenticated } from "./adminAuth";
 import { bot } from "./telegramBot";
-import { insertProductSchema, insertCartSchema, insertTransactionSchema } from "@shared/schema";
-import { z } from "zod";
+import { insertProductSchema, insertCartSchema, insertTransactionSchema } from "@shared/sc  app.get('/api/admin/transactions', isAdminAuthenticated, async (req: any, res) => {
+    try {
+      const transactions = await storage.getTransactions('');
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Telegram auth
   setupTelegramAuth(app);
+  
+  // Setup Admin auth
+  setupAdminAuth(app);
 
   // Product routes
   app.get('/api/products', async (req, res) => {
@@ -165,13 +176,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.get('/api/admin/users', isTelegramAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/users', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
-      const user = await storage.getUser(userId);
-      if (!user?.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
       const users = await storage.getAllUsers();
       res.json(users);
     } catch (error) {
@@ -180,14 +186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/stats', isTelegramAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/stats', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
-      const user = await storage.getUser(userId);
-      if (!user?.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-      
       const [users, revenue, recentActivity] = await Promise.all([
         storage.getAllUsers(),
         storage.getTotalRevenue(),
@@ -306,15 +306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/stats', async (req: any, res) => {
+  app.get('/api/admin/stats', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789';
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
       const users = await storage.getAllUsers();
       const totalRevenue = await storage.getTotalRevenue();
       const pendingTransactions = await storage.getTransactions('', 'pending');
@@ -330,15 +323,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/products', async (req: any, res) => {
+  app.get('/api/admin/products', isAdminAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789';
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
       const products = await storage.getProducts();
       res.json(products);
     } catch (error) {
