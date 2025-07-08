@@ -1,144 +1,71 @@
-import {
-  pgTable,
-  text,
-  varchar,
-  timestamp,
-  jsonb,
-  index,
-  decimal,
-  integer,
-  boolean,
-  serial,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table (mandatory for Replit Auth)
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
-
-// User storage table (mandatory for Replit Auth)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  username: varchar("username").unique(),
-  telegramId: varchar("telegram_id").unique(),
-  isAdmin: boolean("is_admin").default(false),
-  balance: decimal("balance", { precision: 10, scale: 2 }).default("0.00"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+// User schema
+export const userSchema = z.object({
+  id: z.string(),
+  telegramId: z.string(),
+  username: z.string().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  isAdmin: z.boolean().default(false),
+  balance: z.number().default(0),
+  loginCount: z.number().default(0),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Products table
-export const products = pgTable("products", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  category: varchar("category", { length: 100 }),
-  image_url: varchar("image_url"),
-  stock: integer("stock").default(0),
-  featured: boolean("featured").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const insertUserSchema = userSchema.omit({ createdAt: true, updatedAt: true });
+export const upsertUserSchema = userSchema.partial().required({ telegramId: true });
+
+// Product schema
+export const productSchema = z.object({
+  _id: z.string().optional(),
+  name: z.string(),
+  description: z.string().optional(),
+  price: z.number().positive(),
+  category: z.string().optional(),
+  image_url: z.string().url().optional(),
+  stock: z.number().int().min(0).default(0),
+  featured: z.boolean().default(false),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Cart table
-export const carts = pgTable("carts", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull().default(1),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const insertProductSchema = productSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+// Cart schema
+export const cartSchema = z.object({
+  _id: z.string().optional(),
+  userId: z.string(),
+  productId: z.string(),
+  quantity: z.number().int().positive().default(1),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Transactions table
-export const transactions = pgTable("transactions", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  type: varchar("type", { length: 50 }).notNull(), // 'deposit', 'withdrawal', 'purchase', 'refund'
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  description: text("description"),
-  status: varchar("status", { length: 50 }).default("pending"), // 'pending', 'completed', 'failed'
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const insertCartSchema = cartSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+// Transaction schema
+export const transactionSchema = z.object({
+  _id: z.string().optional(),
+  userId: z.string(),
+  type: z.enum(['deposit', 'withdrawal', 'purchase', 'refund']),
+  amount: z.number().positive(),
+  description: z.string().optional(),
+  status: z.enum(['pending', 'completed', 'failed']).default('pending'),
+  metadata: z.any().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  cartItems: many(carts),
-  transactions: many(transactions),
-}));
-
-export const productsRelations = relations(products, ({ many }) => ({
-  cartItems: many(carts),
-}));
-
-export const cartsRelations = relations(carts, ({ one }) => ({
-  user: one(users, {
-    fields: [carts.userId],
-    references: [users.id],
-  }),
-  product: one(products, {
-    fields: [carts.productId],
-    references: [products.id],
-  }),
-}));
-
-export const transactionsRelations = relations(transactions, ({ one }) => ({
-  user: one(users, {
-    fields: [transactions.userId],
-    references: [users.id],
-  }),
-}));
-
-// Zod schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  email: true,
-  firstName: true,
-  lastName: true,
-  profileImageUrl: true,
-  username: true,
-  telegramId: true,
-});
-
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertCartSchema = createInsertSchema(carts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertTransactionSchema = createInsertSchema(transactions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertTransactionSchema = transactionSchema.omit({ _id: true, createdAt: true, updatedAt: true });
 
 // Types
-export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
-export type Product = typeof products.$inferSelect;
+export type User = z.infer<typeof userSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
+export type Product = z.infer<typeof productSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type Cart = typeof carts.$inferSelect;
+export type Cart = z.infer<typeof cartSchema>;
 export type InsertCart = z.infer<typeof insertCartSchema>;
-export type Transaction = typeof transactions.$inferSelect;
+export type Transaction = z.infer<typeof transactionSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

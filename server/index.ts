@@ -1,23 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";
+import cors from "cors";
+import dotenv from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { connectDB } from "./db";
+
+dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'telegram-webapp-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // Set to true in production with HTTPS
-    httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
-}));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -50,6 +43,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Connect to MongoDB
+  await connectDB();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,0 +1,266 @@
+import User from './models/User';
+import Product from './models/Product';
+import Cart from './models/Cart';
+import Transaction from './models/Transaction';
+import type {
+  User as UserType,
+  UpsertUser,
+  Product as ProductType,
+  InsertProduct,
+  Cart as CartType,
+  InsertCart,
+  Transaction as TransactionType,
+  InsertTransaction,
+} from "@shared/schema";
+
+export interface IStorage {
+  // User operations (for Telegram Auth)
+  getUser(id: string): Promise<UserType | undefined>;
+  upsertUser(user: UpsertUser): Promise<UserType>;
+  getUserByTelegramId(telegramId: string): Promise<UserType | undefined>;
+  updateUserBalance(userId: string, balance: number): Promise<UserType | undefined>;
+  
+  // Product operations
+  getProducts(search?: string, category?: string): Promise<ProductType[]>;
+  getProduct(id: string): Promise<ProductType | undefined>;
+  getFeaturedProducts(): Promise<ProductType[]>;
+  createProduct(product: InsertProduct): Promise<ProductType>;
+  updateProduct(id: string, product: Partial<InsertProduct>): Promise<ProductType | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+  
+  // Cart operations
+  getCartItems(userId: string): Promise<(CartType & { product: ProductType })[]>;
+  addToCart(cartItem: InsertCart): Promise<CartType>;
+  updateCartItem(id: string, quantity: number): Promise<CartType | undefined>;
+  removeFromCart(id: string): Promise<boolean>;
+  clearCart(userId: string): Promise<boolean>;
+  
+  // Transaction operations
+  getTransactions(userId: string, type?: string): Promise<TransactionType[]>;
+  createTransaction(transaction: InsertTransaction): Promise<TransactionType>;
+  updateTransactionStatus(id: string, status: string): Promise<TransactionType | undefined>;
+  
+  // Admin operations
+  getAllUsers(): Promise<UserType[]>;
+  getTotalRevenue(): Promise<number>;
+  getRecentActivity(): Promise<TransactionType[]>;
+}
+
+export class MongoStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<UserType | undefined> {
+    const user = await User.findOne({ id });
+    return user ? this.formatUser(user) : undefined;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<UserType> {
+    const user = await User.findOneAndUpdate(
+      { telegramId: userData.telegramId },
+      { 
+        ...userData,
+        $inc: { loginCount: 1 }
+      },
+      { upsert: true, new: true }
+    );
+    return this.formatUser(user);
+  }
+
+  async getUserByTelegramId(telegramId: string): Promise<UserType | undefined> {
+    const user = await User.findOne({ telegramId });
+    return user ? this.formatUser(user) : undefined;
+  }
+
+  async updateUserBalance(userId: string, balance: number): Promise<UserType | undefined> {
+    const user = await User.findOneAndUpdate(
+      { id: userId },
+      { balance },
+      { new: true }
+    );
+    return user ? this.formatUser(user) : undefined;
+  }
+
+  // Product operations
+  async getProducts(search?: string, category?: string): Promise<ProductType[]> {
+    const query: any = {};
+    
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (category) {
+      query.category = category;
+    }
+
+    const products = await Product.find(query).sort({ createdAt: -1 });
+    return products.map(this.formatProduct);
+  }
+
+  async getProduct(id: string): Promise<ProductType | undefined> {
+    const product = await Product.findById(id);
+    return product ? this.formatProduct(product) : undefined;
+  }
+
+  async getFeaturedProducts(): Promise<ProductType[]> {
+    const products = await Product.find({ featured: true }).sort({ createdAt: -1 });
+    return products.map(this.formatProduct);
+  }
+
+  async createProduct(productData: InsertProduct): Promise<ProductType> {
+    const product = new Product(productData);
+    await product.save();
+    return this.formatProduct(product);
+  }
+
+  async updateProduct(id: string, productData: Partial<InsertProduct>): Promise<ProductType | undefined> {
+    const product = await Product.findByIdAndUpdate(id, productData, { new: true });
+    return product ? this.formatProduct(product) : undefined;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await Product.findByIdAndDelete(id);
+    return !!result;
+  }
+
+  // Cart operations
+  async getCartItems(userId: string): Promise<(CartType & { product: ProductType })[]> {
+    const cartItems = await Cart.find({ userId }).populate('productId');
+    return cartItems.map((item: any) => ({
+      ...this.formatCart(item),
+      product: this.formatProduct(item.productId as any)
+    }));
+  }
+
+  async addToCart(cartData: InsertCart): Promise<CartType> {
+    const existingItem = await Cart.findOne({ 
+      userId: cartData.userId, 
+      productId: cartData.productId 
+    });
+
+    if (existingItem) {
+      existingItem.quantity += cartData.quantity;
+      await existingItem.save();
+      return this.formatCart(existingItem);
+    } else {
+      const cartItem = new Cart(cartData);
+      await cartItem.save();
+      return this.formatCart(cartItem);
+    }
+  }
+
+  async updateCartItem(id: string, quantity: number): Promise<CartType | undefined> {
+    const cartItem = await Cart.findByIdAndUpdate(id, { quantity }, { new: true });
+    return cartItem ? this.formatCart(cartItem) : undefined;
+  }
+
+  async removeFromCart(id: string): Promise<boolean> {
+    const result = await Cart.findByIdAndDelete(id);
+    return !!result;
+  }
+
+  async clearCart(userId: string): Promise<boolean> {
+    await Cart.deleteMany({ userId });
+    return true;
+  }
+
+  // Transaction operations
+  async getTransactions(userId: string, type?: string): Promise<TransactionType[]> {
+    const query: any = { userId };
+    if (type) query.type = type;
+
+    const transactions = await Transaction.find(query).sort({ createdAt: -1 });
+    return transactions.map(this.formatTransaction);
+  }
+
+  async createTransaction(transactionData: InsertTransaction): Promise<TransactionType> {
+    const transaction = new Transaction(transactionData);
+    await transaction.save();
+    return this.formatTransaction(transaction);
+  }
+
+  async updateTransactionStatus(id: string, status: string): Promise<TransactionType | undefined> {
+    const transaction = await Transaction.findByIdAndUpdate(id, { status }, { new: true });
+    return transaction ? this.formatTransaction(transaction) : undefined;
+  }
+
+  // Admin operations
+  async getAllUsers(): Promise<UserType[]> {
+    const users = await User.find().sort({ createdAt: -1 });
+    return users.map(this.formatUser);
+  }
+
+  async getTotalRevenue(): Promise<number> {
+    const result = await Transaction.aggregate([
+      { $match: { type: 'purchase', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    return result[0]?.total || 0;
+  }
+
+  async getRecentActivity(): Promise<TransactionType[]> {
+    const transactions = await Transaction.find()
+      .sort({ createdAt: -1 })
+      .limit(10);
+    return transactions.map(this.formatTransaction);
+  }
+
+  // Format helpers to convert MongoDB documents to our types
+  private formatUser(user: any): UserType {
+    return {
+      id: user.id,
+      telegramId: user.telegramId,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isAdmin: user.isAdmin,
+      balance: user.balance,
+      loginCount: user.loginCount,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  private formatProduct(product: any): ProductType {
+    return {
+      _id: product._id.toString(),
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      image_url: product.image_url,
+      stock: product.stock,
+      featured: product.featured,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  }
+
+  private formatCart(cart: any): CartType {
+    return {
+      _id: cart._id.toString(),
+      userId: cart.userId,
+      productId: cart.productId.toString(),
+      quantity: cart.quantity,
+      createdAt: cart.createdAt,
+      updatedAt: cart.updatedAt,
+    };
+  }
+
+  private formatTransaction(transaction: any): TransactionType {
+    return {
+      _id: transaction._id.toString(),
+      userId: transaction.userId,
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      status: transaction.status,
+      metadata: transaction.metadata,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+    };
+  }
+}
+
+export const storage = new MongoStorage();

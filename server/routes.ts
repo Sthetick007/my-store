@@ -38,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/products/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const product = await storage.getProduct(id);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/cart/:id', async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { quantity } = req.body;
       const cartItem = await storage.updateCartItem(id, quantity);
       if (!cartItem) {
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/cart/:id', async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.removeFromCart(id);
       if (!success) {
         return res.status(404).json({ message: "Cart item not found" });
