@@ -1,0 +1,92 @@
+Create a full-stack Telegram WebApp e-commerce wallet application with the following specifications:
+
+**Core Technology Stack:**
+- Next.js 14 with App Router and TypeScript
+- MongoDB with Mongoose for data persistence
+- JWT authentication with Telegram WebApp integration
+- shadcn/ui components with Tailwind CSS
+- Dark theme and modern ui aith smooth animation and glassmorphism
+- Real Telegram Bot integration with node-telegram-bot-api
+
+**Authentication System:**
+- Implement Telegram WebApp authentication using window.Telegram.WebApp API
+- HMAC signature verification for security
+- JWT token generation and validation
+- Auto-user creation on first login
+- Development mode with demo login fallback
+- Session management with 7-day token expiry
+
+**Database Models (MongoDB):**
+- Users: telegramId, firstName, lastName, username, isAdmin, balance, timestamps
+- Products: name, description, price, category, image, stock, featured
+- Cart: userId, items array with productId and quantity
+- Transactions: userId, type, amount, description, status, timestamps
+- Balances: userId, amount, currency, lastUpdated
+
+**Frontend Features:**
+- Single Page Application with tab-based navigation (Store, Wallet, History, Admin)
+- Responsive mobile-first design optimized for Telegram
+- Real-time cart management with local state
+- Product catalog with search and filtering
+- Wallet balance display and transaction history
+- Admin panel for user and transaction management
+- Payment QR code generation and display
+- Loading states and error handling
+
+**Telegram Bot Features:**
+- /start command with welcome message and WebApp button
+- /store, /wallet, /help commands
+- Inline keyboard navigation
+- WebApp launch buttons
+- Callback query handling
+- Rich message formatting with emojis
+
+**API Endpoints:**
+- POST /api/auth/verify - Telegram authentication
+- GET /api/auth/me - Current user profile
+- GET /api/products - Product catalog with search
+- GET/POST/PUT/DELETE /api/cart - Cart management
+- GET/POST /api/transactions - Transaction handling
+- GET /api/admin/users - Admin user management
+- GET /api/health - System health check
+
+**Security Features:**
+- Environment variable configuration
+- CORS headers for cross-origin requests
+- Input validation and sanitization
+- Admin role-based access control
+- Secure JWT secret management
+
+**Development Tools:**
+- npm scripts for setup, testing, and database management
+- Environment validation scripts
+- Authentication testing utilities
+- Database seeding with sample data
+- Bot configuration scripts
+
+**File Structure:**
+- app/ - Next.js App Router pages and API routes
+- components/ - Reusable UI components organized by feature
+- lib/ - Utilities, services, and database connection
+- models/ - MongoDB schemas
+- hooks/ - Custom React hooks for state management
+- scripts/ - Setup and testing automation
+- types/ - TypeScript type definitions
+
+**Specific Requirements:**
+- Must work in both development (localhost) and production (HTTPS)
+- Handle Telegram WebApp lifecycle (ready, theme, main button)
+- Automatic dependency installation and environment setup
+- Real-time UI updates without page refresh
+- Mobile-optimized touch interactions
+- Support for both regular users and admin users
+- Transaction history with filtering and pagination
+- Cart persistence across sessions
+
+**Deployment Configuration:**
+- Vercel-ready with proper build configuration
+- Environment variables for MongoDB, JWT, and Telegram
+- Production webhook setup for Telegram bot
+- HTTPS requirements for full WebApp functionality
+
+Create this as a complete, production-ready application with all files, proper error handling, and comprehensive documentation.
