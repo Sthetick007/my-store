@@ -1,6 +1,10 @@
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import Product from '../server/models/Product';
 import { connectDB } from '../server/db';
+
+// Load environment variables
+dotenv.config();
 
 const sampleProducts = [
   {
@@ -52,7 +56,11 @@ const sampleProducts = [
 
 async function seedProducts() {
   try {
-    await connectDB();
+    // Connect directly using the MONGODB_URI
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/telegram-store';
+    console.log('Connecting to:', MONGODB_URI.replace(/\/\/.*@/, '//***:***@')); // Hide credentials
+    
+    await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB');
 
     // Clear existing products

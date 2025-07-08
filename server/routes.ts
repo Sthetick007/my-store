@@ -224,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const productData = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(id, productData);
       if (!product) {
@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.deleteProduct(id);
       if (!success) {
         return res.status(404).json({ message: "Product not found" });
@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const productData = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(id, productData);
       
@@ -394,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const success = await storage.deleteProduct(id);
       
       if (!success) {
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const transaction = await storage.updateTransactionStatus(id, 'completed');
       
       if (!transaction) {
@@ -445,9 +445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (transaction.type === 'deposit') {
         const targetUser = await storage.getUser(transaction.userId);
         if (targetUser) {
-          const currentBalance = parseFloat(targetUser.balance || '0');
-          const newBalance = currentBalance + parseFloat(transaction.amount);
-          await storage.updateUserBalance(transaction.userId, newBalance.toString());
+          const currentBalance = targetUser.balance || 0;
+          const newBalance = currentBalance + transaction.amount;
+          await storage.updateUserBalance(transaction.userId, newBalance);
         }
       }
       
@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const transaction = await storage.updateTransactionStatus(id, 'failed');
       
       if (!transaction) {
