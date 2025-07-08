@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const WEBAPP_URL = process.env.WEBAPP_URL || 'https://your-app.replit.app';
+const WEBAPP_URL = process.env.WEBAPP_URL;
 
 let bot: TelegramBot | null = null;
 

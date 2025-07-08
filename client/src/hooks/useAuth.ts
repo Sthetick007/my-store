@@ -1,29 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 export function useAuth() {
-  const isDev = import.meta.env.DEV;
+  const token = localStorage.getItem('telegram_token');
   
-  // Mock user data for development
-  const mockUser = {
-    id: '123456789',
-    firstName: 'Dev',
-    lastName: 'User',
-    username: 'devuser',
-    email: 'dev@example.com',
-    balance: '100.00',
-    isAdmin: true,
-    profileImageUrl: null,
-  };
-
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["/api/auth/telegram/user"],
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: async () => {
+      if (!token) return null;
+      
+      try {
+        return await apiRequest('POST', '/api/auth/me', {}, {
+          'Authorization': `Bearer ${token}`
+        });
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        // Clear invalid token
+        localStorage.removeItem('telegram_token');
+        return null;
+      }
+    },
     retry: false,
-    enabled: !isDev, // Don't fetch in dev mode
+    enabled: !!token,
   });
 
+  const user = response?.success ? response.user : null;
+
   return {
-    user: isDev ? mockUser : user,
-    isLoading: isDev ? false : isLoading,
-    isAuthenticated: isDev ? true : !!user,
+    user,
+    isLoading: !!token && isLoading,
+    isAuthenticated: !!user,
   };
 }
