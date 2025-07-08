@@ -7,8 +7,8 @@ export function Header() {
   const { user: telegramUser } = useTelegram();
 
   const displayName = authUser?.firstName || telegramUser?.first_name || 'User';
-  const username = authUser?.username || telegramUser?.username || 'user';
-  const avatarUrl = authUser?.profileImageUrl || telegramUser?.photo_url;
+  const username = authUser?.username || telegramUser?.username;
+  const avatarUrl = authUser?.photoUrl || telegramUser?.photo_url;
   const balance = authUser?.balance || '0.00';
 
   return (
@@ -24,7 +24,7 @@ export function Header() {
             </Avatar>
             <div>
               <h1 className="text-sm font-semibold text-white">{displayName}</h1>
-              <p className="text-xs text-gray-400">@{username}</p>
+              {username && <p className="text-xs text-gray-400">@{username}</p>}
             </div>
           </div>
           <div className="flex items-center space-x-3">

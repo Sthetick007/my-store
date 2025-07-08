@@ -43,5 +43,3 @@ router.get('/products', isTelegramAuthenticated, async (req: any, res) => {
 });
 
 export default router;
-
-export default router;

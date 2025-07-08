@@ -4,7 +4,7 @@ import { insertProductSchema, insertSentProductSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAdminAuthenticated } from "../adminAuth";
 import { SentProduct } from "../models/SentProduct";
-import { Product } from "../models/Product";
+import Product from "../models/Product";
 
 const router = Router();
 

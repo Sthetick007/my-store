@@ -91,7 +91,7 @@ export function SimpleAdminDashboard() {
         name: productData.name,
         description: productData.description,
         price: parseFloat(productData.price),
-        imageUrl: productData.imageUrl,
+        image_url: productData.imageUrl, // Map imageUrl to image_url
         stock: parseInt(productData.stock)
       }, {
         'Authorization': `Bearer ${token}`
@@ -220,15 +220,13 @@ export function SimpleAdminDashboard() {
     }
   });
 
-  // Simulate loading some stats
+  // Update stats with real data
   useEffect(() => {
-    setTimeout(() => {
-      setStats({
-        totalUsers: users.length || 25,
-        totalRevenue: 1250.50,
-        pendingTransactions: pendingTransactions.length || 3
-      });
-    }, 1000);
+    setStats({
+      totalUsers: users.length,
+      totalRevenue: 0, // Will be calculated from actual transactions
+      pendingTransactions: pendingTransactions.length
+    });
   }, [users.length, pendingTransactions.length]);
 
   return (
@@ -410,46 +408,6 @@ export function SimpleAdminDashboard() {
                   </div>
                 ))
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="bg-dark-card/50 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
-                <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
-                  <i className="fas fa-user-plus text-green-500 text-sm"></i>
-                </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm">New user registered</p>
-                  <p className="text-gray-400 text-xs">2 minutes ago</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <i className="fas fa-shopping-cart text-blue-500 text-sm"></i>
-                </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm">New order received</p>
-                  <p className="text-gray-400 text-xs">5 minutes ago</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
-                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                  <i className="fas fa-exclamation-triangle text-yellow-500 text-sm"></i>
-                </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm">Payment pending approval</p>
-                  <p className="text-gray-400 text-xs">10 minutes ago</p>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>

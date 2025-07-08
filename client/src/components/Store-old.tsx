@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useTelegram } from '@/hooks/useTelegram';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,6 @@ export function Store() {
   const { hapticFeedback } = useTelegram();
   const queryClient = useQueryClient();
 
-  // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ['/api/products', searchTerm],
     queryFn: async () => {
@@ -22,69 +22,45 @@ export function Store() {
       if (searchTerm) params.append('search', searchTerm);
       
       const response = await fetch(`/api/products?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log('📦 Products fetched:', data);
-      return data;
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json();
     },
   });
 
-  // Add to cart mutation
   const addToCartMutation = useMutation({
     mutationFn: async ({ productId, quantity }: { productId: string; quantity: number }) => {
       const token = localStorage.getItem('telegram_token');
-      
-      console.log('🛒 Starting add to cart process');
+      console.log('🛒 Add to cart mutation started');
       console.log('🔐 Token exists:', !!token);
       console.log('📦 Product ID:', productId);
       console.log('🔢 Quantity:', quantity);
       
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error('No authentication token found');
       }
-
-      if (!productId) {
-        throw new Error('Product ID is required');
-      }
-
-      const response = await fetch('/api/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          productId: productId.toString(), 
-          quantity: Number(quantity) 
-        })
-      });
-
-      console.log('📡 Response status:', response.status);
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      try {
+        const response = await apiRequest('POST', '/api/cart', { productId, quantity }, {
+          'Authorization': `Bearer ${token}`
+        });
+        console.log('✅ Add to cart response:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ Add to cart API error:', error);
+        throw error;
       }
-
-      const data = await response.json();
-      console.log('✅ Add to cart success:', data);
-      return data;
     },
     onSuccess: (data) => {
-      console.log('🎉 Mutation success callback:', data);
+      console.log('🎉 Add to cart success:', data);
       hapticFeedback('success');
       toast({
         title: 'Added to cart',
         description: 'Product has been added to your cart.',
       });
-      // Invalidate cart queries to refresh cart data
       queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
     },
     onError: (error: any) => {
-      console.error('💥 Mutation error callback:', error);
+      console.error('💥 Add to cart error in onError:', error);
       hapticFeedback('error');
       toast({
         title: 'Error',
@@ -95,13 +71,12 @@ export function Store() {
   });
 
   const handleAddToCart = (productId: string) => {
-    console.log('🎯 handleAddToCart called with productId:', productId);
-    
+    console.log('handleAddToCart called with productId:', productId);
     if (!productId) {
-      console.error('❌ No product ID provided');
+      console.error('No product ID provided');
       toast({
         title: 'Error',
-        description: 'Product ID is missing.',
+        description: 'Invalid product ID.',
         variant: 'destructive',
       });
       return;
@@ -111,54 +86,46 @@ export function Store() {
     addToCartMutation.mutate({ productId, quantity: 1 });
   };
 
-  const ProductCard = ({ product }: { product: Product }) => {
-    console.log('🎨 Rendering product card:', product.name, 'ID:', product._id);
-    
-    return (
-      <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 overflow-hidden hover:border-accent-blue transition-all duration-300 group">
-        <div className="aspect-square bg-gray-800 relative overflow-hidden">
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                console.error('🖼️ Image failed to load:', product.image_url);
-                e.currentTarget.style.display = 'none';
-                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                if (fallback) fallback.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div 
-            className="w-full h-full flex items-center justify-center" 
-            style={{ display: product.image_url ? 'none' : 'flex' }}
-          >
-            <i className="fas fa-box text-gray-500 text-3xl"></i>
-          </div>
+  const ProductCard = ({ product }: { product: Product }) => (
+    <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 overflow-hidden hover:border-accent-blue transition-all duration-300 group">
+      <div className="aspect-square bg-gray-800 relative overflow-hidden">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              console.error('Image failed to load:', product.image_url);
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling!.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className="w-full h-full flex items-center justify-center" style={{ display: product.image_url ? 'none' : 'flex' }}>
+          <i className="fas fa-box text-gray-500 text-3xl"></i>
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-semibold text-white text-sm mb-1 truncate">{product.name}</h3>
-          <p className="text-xs text-gray-400 mb-2 line-clamp-2">{product.description}</p>
-          <div className="flex items-center justify-between">
-            <span className="text-accent-blue font-bold text-sm">${product.price}</span>
-            <Button
-              size="sm"
-              onClick={() => handleAddToCart(product._id!)}
-              disabled={addToCartMutation.isPending}
-              className="w-8 h-8 bg-accent-blue hover:bg-accent-blue-dark rounded-full p-0"
-            >
-              {addToCartMutation.isPending ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <i className="fas fa-plus text-white text-xs"></i>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+      </div>
+      <CardContent className="p-3">
+        <h3 className="font-semibold text-white text-sm mb-1 truncate">{product.name}</h3>
+        <p className="text-xs text-gray-400 mb-2 line-clamp-2">{product.description}</p>
+        <div className="flex items-center justify-between">
+          <span className="text-accent-blue font-bold text-sm">${product.price}</span>
+          <Button
+            size="sm"
+            onClick={() => handleAddToCart(product._id || '')}
+            disabled={addToCartMutation.isPending}
+            className="w-8 h-8 bg-accent-blue hover:bg-accent-blue-dark rounded-full p-0"
+          >
+            {addToCartMutation.isPending ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <i className="fas fa-plus text-white text-xs"></i>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="pb-4">

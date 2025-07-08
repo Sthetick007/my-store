@@ -6,77 +6,137 @@ import { isTelegramAuthenticated } from "../telegramAuth";
 
 const router = Router();
 
-// Cart routes (protected by auth)
+// Get cart items for user
 router.get('/', isTelegramAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user?.id;
-    console.log('Fetching cart for user:', userId);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+    
+    console.log('📦 Fetching cart for user:', userId);
     const cartItems = await storage.getCartItems(userId);
-    console.log('Found cart items:', cartItems.length);
-    res.json(cartItems);
+    console.log('✅ Found cart items:', cartItems.length);
+    
+    res.json({ success: true, cartItems });
   } catch (error) {
-    console.error("Error fetching cart:", error);
-    res.status(500).json({ message: "Failed to fetch cart" });
+    console.error("❌ Error fetching cart:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch cart" });
   }
 });
 
+// Add item to cart
 router.post('/', isTelegramAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user?.id;
-    console.log('Adding to cart for user:', userId, 'product:', req.body.productId);
-    const cartData = insertCartSchema.parse({ ...req.body, userId });
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+    
+    const { productId, quantity = 1 } = req.body;
+    console.log('🛒 Adding to cart - User:', userId, 'Product:', productId, 'Quantity:', quantity);
+    
+    if (!productId) {
+      return res.status(400).json({ success: false, message: "Product ID is required" });
+    }
+    
+    // Validate cart data
+    const cartData = insertCartSchema.parse({ 
+      userId, 
+      productId, 
+      quantity: parseInt(quantity) 
+    });
+    
+    // Check if product exists
+    const product = await storage.getProduct(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    
+    // Add to cart
     const cartItem = await storage.addToCart(cartData);
-    console.log('Added item to cart:', cartItem);
-    res.json(cartItem);
+    console.log('✅ Added item to cart:', cartItem);
+    
+    res.json({ success: true, cartItem, message: "Item added to cart" });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid cart data", errors: error.errors });
+      console.error("❌ Validation error:", error.errors);
+      return res.status(400).json({ success: false, message: "Invalid cart data", errors: error.errors });
     }
-    console.error("Error adding to cart:", error);
-    res.status(500).json({ message: "Failed to add to cart" });
+    console.error("❌ Error adding to cart:", error);
+    res.status(500).json({ success: false, message: "Failed to add to cart" });
   }
 });
 
+// Update cart item quantity
 router.put('/:id', isTelegramAuthenticated, async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+    
     const id = req.params.id;
     const { quantity } = req.body;
-    console.log('Updating cart item:', id, 'quantity:', quantity);
-    const cartItem = await storage.updateCartItem(id, quantity);
-    if (!cartItem) {
-      return res.status(404).json({ message: "Cart item not found" });
+    console.log('📝 Updating cart item:', id, 'quantity:', quantity);
+    
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({ success: false, message: "Quantity must be at least 1" });
     }
-    res.json(cartItem);
+    
+    const cartItem = await storage.updateCartItem(id, parseInt(quantity));
+    if (!cartItem) {
+      return res.status(404).json({ success: false, message: "Cart item not found" });
+    }
+    
+    console.log('✅ Updated cart item:', cartItem);
+    res.json({ success: true, cartItem, message: "Cart item updated" });
   } catch (error) {
-    console.error("Error updating cart item:", error);
-    res.status(500).json({ message: "Failed to update cart item" });
+    console.error("❌ Error updating cart item:", error);
+    res.status(500).json({ success: false, message: "Failed to update cart item" });
   }
 });
 
+// Remove item from cart
 router.delete('/:id', isTelegramAuthenticated, async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+    
     const id = req.params.id;
-    console.log('Removing item from cart:', id);
+    console.log('🗑️ Removing item from cart:', id);
+    
     const success = await storage.removeFromCart(id);
     if (!success) {
-      return res.status(404).json({ message: "Cart item not found" });
+      return res.status(404).json({ success: false, message: "Cart item not found" });
     }
-    res.json({ message: "Item removed from cart" });
+    
+    console.log('✅ Removed item from cart');
+    res.json({ success: true, message: "Item removed from cart" });
   } catch (error) {
-    console.error("Error removing from cart:", error);
-    res.status(500).json({ message: "Failed to remove from cart" });
+    console.error("❌ Error removing from cart:", error);
+    res.status(500).json({ success: false, message: "Failed to remove from cart" });
   }
 });
 
+// Clear entire cart
 router.delete('/', isTelegramAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user?.id;
-    console.log('Clearing cart for user:', userId);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+    
+    console.log('🧹 Clearing cart for user:', userId);
     const success = await storage.clearCart(userId);
-    res.json({ message: "Cart cleared" });
+    
+    console.log('✅ Cart cleared');
+    res.json({ success: true, message: "Cart cleared" });
   } catch (error) {
-    console.error("Error clearing cart:", error);
-    res.status(500).json({ message: "Failed to clear cart" });
+    console.error("❌ Error clearing cart:", error);
+    res.status(500).json({ success: false, message: "Failed to clear cart" });
   }
 });
 
