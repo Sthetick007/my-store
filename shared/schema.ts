@@ -26,7 +26,6 @@ export const productSchema = z.object({
   category: z.string().optional(),
   image_url: z.string().url().optional(),
   stock: z.number().int().min(0).default(0),
-  featured: z.boolean().default(false),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

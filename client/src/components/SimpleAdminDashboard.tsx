@@ -22,6 +22,7 @@ export function SimpleAdminDashboard() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showEditBalance, setShowEditBalance] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
+  const [showSendProduct, setShowSendProduct] = useState(false);
   
   // Form states
   const [productForm, setProductForm] = useState({
@@ -30,7 +31,6 @@ export function SimpleAdminDashboard() {
     price: '',
     category: '',
     imageUrl: '',
-    featured: false,
     stock: '0'
   });
   
@@ -76,7 +76,6 @@ export function SimpleAdminDashboard() {
         price: parseFloat(productData.price),
         category: productData.category,
         imageUrl: productData.imageUrl,
-        featured: productData.featured,
         stock: parseInt(productData.stock)
       }, {
         'Authorization': `Bearer ${token}`
@@ -91,7 +90,6 @@ export function SimpleAdminDashboard() {
         price: '',
         category: '',
         imageUrl: '',
-        featured: false,
         stock: '0'
       });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
@@ -522,16 +520,6 @@ export function SimpleAdminDashboard() {
                 className="bg-gray-800 border-gray-700 text-white"
                 placeholder="https://example.com/image.jpg"
               />
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="featured"
-                checked={productForm.featured}
-                onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
-                className="rounded"
-              />
-              <Label htmlFor="featured" className="text-gray-400">Featured Product</Label>
             </div>
             <div className="flex space-x-2">
               <Button
