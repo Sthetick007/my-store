@@ -64,7 +64,7 @@ export default function Home() {
         }
 
         if (initData) {
-          const response = await apiRequest('POST', '/api/auth/telegram', {
+          const response = await apiRequest('POST', '/api/auth/verify', {
             initData
           });
 

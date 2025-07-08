@@ -37,6 +37,7 @@ router.post('/', isTelegramAuthenticated, async (req: any, res) => {
     console.log('🛒 Adding to cart - User:', userId, 'Product:', productId, 'Quantity:', quantity);
     
     if (!productId) {
+      console.log('❌ Product ID is missing');
       return res.status(400).json({ success: false, message: "Product ID is required" });
     }
     
@@ -47,11 +48,19 @@ router.post('/', isTelegramAuthenticated, async (req: any, res) => {
       quantity: parseInt(quantity) 
     });
     
+    console.log('✅ Cart data validated:', cartData);
+    
     // Check if product exists
+    console.log('🔍 Looking for product:', productId);
     const product = await storage.getProduct(productId);
+    console.log('📦 Product found:', !!product);
+    
     if (!product) {
+      console.log('❌ Product not found in database');
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+    
+    console.log('✅ Product exists, adding to cart...');
     
     // Add to cart
     const cartItem = await storage.addToCart(cartData);
@@ -64,6 +73,7 @@ router.post('/', isTelegramAuthenticated, async (req: any, res) => {
       return res.status(400).json({ success: false, message: "Invalid cart data", errors: error.errors });
     }
     console.error("❌ Error adding to cart:", error);
+    console.error("❌ Error stack:", error.stack);
     res.status(500).json({ success: false, message: "Failed to add to cart" });
   }
 });

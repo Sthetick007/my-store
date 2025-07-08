@@ -130,11 +130,15 @@ export function useTelegram() {
   };
 
   const hapticFeedback = (type: 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'warning') => {
-    if (webApp) {
-      if (type === 'success' || type === 'error' || type === 'warning') {
-        webApp.HapticFeedback.notificationOccurred(type);
-      } else {
-        webApp.HapticFeedback.impactOccurred(type);
+    if (webApp && webApp.HapticFeedback) {
+      try {
+        if (type === 'success' || type === 'error' || type === 'warning') {
+          webApp.HapticFeedback.notificationOccurred(type);
+        } else {
+          webApp.HapticFeedback.impactOccurred(type);
+        }
+      } catch (error) {
+        console.warn('Haptic feedback not available:', error);
       }
     }
   };

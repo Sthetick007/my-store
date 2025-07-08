@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useTelegram } from '@/hooks/useTelegram';
+import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +14,7 @@ export function Store() {
   const { toast } = useToast();
   const { hapticFeedback } = useTelegram();
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
@@ -38,17 +40,20 @@ export function Store() {
       
       console.log('🛒 Starting add to cart process');
       console.log('🔐 Token exists:', !!token);
-      console.log('📦 Product ID:', productId);
+      console.log('� Token value:', token ? `${token.substring(0, 20)}...` : 'null');
+      console.log('�📦 Product ID:', productId);
       console.log('🔢 Quantity:', quantity);
       
       if (!token) {
-        throw new Error('Not authenticated');
+        console.error('❌ No authentication token found in localStorage');
+        throw new Error('Please log in to add items to cart');
       }
 
       if (!productId) {
         throw new Error('Product ID is required');
       }
 
+      console.log('📡 Making API request to /api/cart');
       const response = await fetch('/api/cart', {
         method: 'POST',
         headers: {
@@ -62,6 +67,7 @@ export function Store() {
       });
 
       console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Network error' }));
@@ -107,7 +113,8 @@ export function Store() {
       return;
     }
     
-    hapticFeedback('light');
+    // Remove haptic feedback for now to avoid errors in development
+    // hapticFeedback('light');
     addToCartMutation.mutate({ productId, quantity: 1 });
   };
 

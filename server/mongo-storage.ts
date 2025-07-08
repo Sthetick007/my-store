@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from './models/User';
 import Product from './models/Product';
 import Cart from './models/Cart';
@@ -134,19 +135,36 @@ export class MongoStorage implements IStorage {
   }
 
   async addToCart(cartData: InsertCart): Promise<CartType> {
-    const existingItem = await Cart.findOne({ 
-      userId: cartData.userId, 
-      productId: cartData.productId 
-    });
+    console.log('🛒 mongo-storage addToCart called with:', cartData);
+    
+    try {
+      // Convert productId string to ObjectId
+      const productObjectId = new mongoose.Types.ObjectId(cartData.productId);
+      console.log('🔄 Converted productId to ObjectId:', productObjectId);
+      
+      const existingItem = await Cart.findOne({ 
+        userId: cartData.userId, 
+        productId: productObjectId 
+      });
 
-    if (existingItem) {
-      existingItem.quantity += cartData.quantity;
-      await existingItem.save();
-      return this.formatCart(existingItem);
-    } else {
-      const cartItem = new Cart(cartData);
-      await cartItem.save();
-      return this.formatCart(cartItem);
+      if (existingItem) {
+        console.log('📦 Found existing cart item, updating quantity');
+        existingItem.quantity += cartData.quantity;
+        await existingItem.save();
+        return this.formatCart(existingItem);
+      } else {
+        console.log('➕ Creating new cart item');
+        const cartItem = new Cart({
+          ...cartData,
+          productId: productObjectId
+        });
+        await cartItem.save();
+        console.log('✅ Cart item created successfully');
+        return this.formatCart(cartItem);
+      }
+    } catch (error) {
+      console.error('❌ Error in addToCart:', error);
+      throw error;
     }
   }
 

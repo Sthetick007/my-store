@@ -20,7 +20,7 @@ async function testAuth() {
       initData: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%7D&auth_date=1640995200&hash=mock_hash'
     };
 
-    const authResponse = await fetch(`${BASE_URL}/api/auth/telegram`, {
+    const authResponse = await fetch(`${BASE_URL}/api/auth/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
