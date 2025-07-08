@@ -20,6 +20,9 @@ export function SimpleAdminDashboard() {
   
   // Modal states
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showEditProduct, setShowEditProduct] = useState(false);
+  const [showDeleteProduct, setShowDeleteProduct] = useState(false);
+  const [showManageProducts, setShowManageProducts] = useState(false);
   const [showEditBalance, setShowEditBalance] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
   const [showSendProduct, setShowSendProduct] = useState(false);
@@ -33,6 +36,17 @@ export function SimpleAdminDashboard() {
     stock: '0'
   });
   
+  const [editProductForm, setEditProductForm] = useState({
+    _id: '',
+    name: '',
+    description: '',
+    price: '',
+    imageUrl: '',
+    stock: '0'
+  });
+  
+  const [productToDelete, setProductToDelete] = useState<any>(null);
+
   const [balanceForm, setBalanceForm] = useState({
     userId: '',
     newBalance: '',
@@ -47,6 +61,17 @@ export function SimpleAdminDashboard() {
     instructions: ''
   });
 
+  // New states for user balance management
+  const [userBalanceForm, setUserBalanceForm] = useState({
+    userId: '',
+    fetchedBalance: null as number | null,
+    addAmount: '',
+    removeAmount: ''
+  });
+  
+  const [showUserBalance, setShowUserBalance] = useState(false);
+  const [showFetchBalance, setShowFetchBalance] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -54,7 +79,10 @@ export function SimpleAdminDashboard() {
   const { data: pendingTransactions = [] } = useQuery({
     queryKey: ['/api/admin/transactions/pending'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/transactions?status=pending');
+      const adminToken = localStorage.getItem('admin_token');
+      const response = await apiRequest('GET', '/api/admin/transactions?status=pending', undefined, {
+        Authorization: `Bearer ${adminToken}`
+      });
       return response.transactions || [];
     }
   });
@@ -63,7 +91,13 @@ export function SimpleAdminDashboard() {
   const { data: users = [] } = useQuery({
     queryKey: ['/api/admin/users'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/users');
+      console.log('🔍 Fetching users from admin API...');
+      const adminToken = localStorage.getItem('admin_token');
+      console.log('🔐 Admin token:', adminToken ? 'present' : 'missing');
+      const response = await apiRequest('GET', '/api/admin/users', undefined, {
+        Authorization: `Bearer ${adminToken}`
+      });
+      console.log('👥 Users API response:', response);
       return response.users || [];
     }
   });
@@ -113,6 +147,65 @@ export function SimpleAdminDashboard() {
       toast({ 
         title: 'Error adding product', 
         description: error.message || 'Failed to add product',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Update Product Mutation
+  const updateProductMutation = useMutation({
+    mutationFn: async (productData: typeof editProductForm) => {
+      const token = localStorage.getItem('admin_token');
+      return await apiRequest('PUT', `/api/admin/products/${productData._id}`, {
+        name: productData.name,
+        description: productData.description,
+        price: parseFloat(productData.price),
+        image_url: productData.imageUrl,
+        stock: parseInt(productData.stock)
+      }, {
+        'Authorization': `Bearer ${token}`
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Product updated successfully!' });
+      setShowEditProduct(false);
+      setEditProductForm({
+        _id: '',
+        name: '',
+        description: '',
+        price: '',
+        imageUrl: '',
+        stock: '0'
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error updating product', 
+        description: error.message || 'Failed to update product',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Delete Product Mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      const token = localStorage.getItem('admin_token');
+      return await apiRequest('DELETE', `/api/admin/products/${productId}`, {}, {
+        'Authorization': `Bearer ${token}`
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Product deleted successfully!' });
+      setShowDeleteProduct(false);
+      setProductToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error deleting product', 
+        description: error.message || 'Failed to delete product',
         variant: 'destructive' 
       });
     }
@@ -215,6 +308,92 @@ export function SimpleAdminDashboard() {
       toast({ 
         title: 'Error sending product', 
         description: error.message || 'Failed to send product',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Fetch User Balance Mutation
+  const fetchUserBalanceMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const token = localStorage.getItem('admin_token');
+      const response = await apiRequest('GET', `/api/admin/user/${userId}`, undefined, {
+        'Authorization': `Bearer ${token}`
+      });
+      return response.user;
+    },
+    onSuccess: (user) => {
+      setUserBalanceForm(prev => ({ ...prev, fetchedBalance: user.balance }));
+      setShowFetchBalance(false);
+      setShowUserBalance(true);
+      toast({ title: 'User balance fetched successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error fetching user balance', 
+        description: error.message || 'Failed to fetch user balance',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Add Balance Mutation
+  const addBalanceMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      const token = localStorage.getItem('admin_token');
+      const currentBalance = userBalanceForm.fetchedBalance || 0;
+      const newBalance = currentBalance + amount;
+      return await apiRequest('PUT', `/api/admin/user/${userId}/balance`, {
+        balance: newBalance,
+        reason: `Add balance: +$${amount}`
+      }, {
+        'Authorization': `Bearer ${token}`
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Balance added successfully!' });
+      setUserBalanceForm(prev => ({ 
+        ...prev, 
+        fetchedBalance: prev.fetchedBalance! + parseFloat(prev.addAmount),
+        addAmount: ''
+      }));
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error adding balance', 
+        description: error.message || 'Failed to add balance',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Remove Balance Mutation
+  const removeBalanceMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      const token = localStorage.getItem('admin_token');
+      const currentBalance = userBalanceForm.fetchedBalance || 0;
+      const newBalance = Math.max(0, currentBalance - amount);
+      return await apiRequest('PUT', `/api/admin/user/${userId}/balance`, {
+        balance: newBalance,
+        reason: `Remove balance: -$${amount}`
+      }, {
+        'Authorization': `Bearer ${token}`
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Balance removed successfully!' });
+      setUserBalanceForm(prev => ({ 
+        ...prev, 
+        fetchedBalance: Math.max(0, prev.fetchedBalance! - parseFloat(prev.removeAmount)),
+        removeAmount: ''
+      }));
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error removing balance', 
+        description: error.message || 'Failed to remove balance',
         variant: 'destructive' 
       });
     }
@@ -341,6 +520,14 @@ export function SimpleAdminDashboard() {
               </Button>
               
               <Button 
+                onClick={() => setShowManageProducts(true)}
+                className="bg-indigo-500 hover:bg-indigo-600 h-16 flex-col space-y-1 text-sm"
+              >
+                <i className="fas fa-edit"></i>
+                <span>Manage Products</span>
+              </Button>
+              
+              <Button 
                 onClick={() => setShowUsers(true)}
                 className="bg-green-500 hover:bg-green-600 h-16 flex-col space-y-1 text-sm"
               >
@@ -362,6 +549,14 @@ export function SimpleAdminDashboard() {
               >
                 <i className="fas fa-gift"></i>
                 <span>Send Product</span>
+              </Button>
+              
+              <Button 
+                onClick={() => setShowFetchBalance(true)}
+                className="bg-teal-500 hover:bg-teal-600 h-16 flex-col space-y-1 text-sm"
+              >
+                <i className="fas fa-search-dollar"></i>
+                <span>User Balance</span>
               </Button>
             </div>
           </CardContent>
@@ -495,63 +690,196 @@ export function SimpleAdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Balance Modal */}
-      <Dialog open={showEditBalance} onOpenChange={setShowEditBalance}>
+      {/* Manage Products Modal */}
+      <Dialog open={showManageProducts} onOpenChange={setShowManageProducts}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">Manage Products</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {products.length === 0 ? (
+              <div className="text-center py-8">
+                <i className="fas fa-box text-gray-500 text-3xl mb-2"></i>
+                <p className="text-gray-400">No products found</p>
+              </div>
+            ) : (
+              products.map((product: any) => (
+                <div key={product._id} className="p-4 bg-gray-800/50 rounded-lg">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        {product.image_url && (
+                          <img 
+                            src={product.image_url} 
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <div>
+                          <h3 className="text-white font-semibold text-lg">{product.name}</h3>
+                          <p className="text-gray-400 text-sm">{product.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 mt-2">
+                        <Badge className="bg-green-500">${product.price}</Badge>
+                        <Badge className="bg-blue-500">Stock: {product.stock}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setEditProductForm({
+                            _id: product._id,
+                            name: product.name,
+                            description: product.description || '',
+                            price: product.price.toString(),
+                            imageUrl: product.image_url || '',
+                            stock: product.stock.toString()
+                          });
+                          setShowManageProducts(false);
+                          setShowEditProduct(true);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600"
+                      >
+                        <i className="fas fa-edit mr-1"></i>
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setProductToDelete(product);
+                          setShowManageProducts(false);
+                          setShowDeleteProduct(true);
+                        }}
+                        className="bg-red-500 hover:bg-red-600"
+                      >
+                        <i className="fas fa-trash mr-1"></i>
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Modal */}
+      <Dialog open={showEditProduct} onOpenChange={setShowEditProduct}>
         <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit User Balance</DialogTitle>
+            <DialogTitle className="text-white">Edit Product</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="userId" className="text-gray-400">User ID</Label>
-              <Select
-                value={balanceForm.userId}
-                onValueChange={(value) => setBalanceForm({ ...balanceForm, userId: value })}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user: any) => (
-                    <SelectItem key={user._id || user.id} value={user._id || user.id}>
-                      {user.firstName} {user.lastName} (@{user.username}) - ${user.balance}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="newBalance" className="text-gray-400">New Balance ($)</Label>
+              <Label htmlFor="editName" className="text-gray-400">Product Name</Label>
               <Input
-                id="newBalance"
-                type="number"
-                step="0.01"
-                value={balanceForm.newBalance}
-                onChange={(e) => setBalanceForm({ ...balanceForm, newBalance: e.target.value })}
+                id="editName"
+                value={editProductForm.name}
+                onChange={(e) => setEditProductForm({ ...editProductForm, name: e.target.value })}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="0.00"
+                placeholder="Enter product name"
               />
             </div>
             <div>
-              <Label htmlFor="reason" className="text-gray-400">Reason</Label>
+              <Label htmlFor="editDescription" className="text-gray-400">Description</Label>
               <Textarea
-                id="reason"
-                value={balanceForm.reason}
-                onChange={(e) => setBalanceForm({ ...balanceForm, reason: e.target.value })}
+                id="editDescription"
+                value={editProductForm.description}
+                onChange={(e) => setEditProductForm({ ...editProductForm, description: e.target.value })}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="Enter reason for balance change"
+                placeholder="Enter product description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="editPrice" className="text-gray-400">Price ($)</Label>
+                <Input
+                  id="editPrice"
+                  type="number"
+                  step="0.01"
+                  value={editProductForm.price}
+                  onChange={(e) => setEditProductForm({ ...editProductForm, price: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editStock" className="text-gray-400">Stock</Label>
+                <Input
+                  id="editStock"
+                  type="number"
+                  value={editProductForm.stock}
+                  onChange={(e) => setEditProductForm({ ...editProductForm, stock: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="editImageUrl" className="text-gray-400">Image URL</Label>
+              <Input
+                id="editImageUrl"
+                value={editProductForm.imageUrl}
+                onChange={(e) => setEditProductForm({ ...editProductForm, imageUrl: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="https://example.com/image.jpg"
               />
             </div>
             <div className="flex space-x-2">
               <Button
-                onClick={() => updateBalanceMutation.mutate(balanceForm)}
-                disabled={updateBalanceMutation.isPending}
+                onClick={() => updateProductMutation.mutate(editProductForm)}
+                disabled={updateProductMutation.isPending}
                 className="flex-1 bg-accent-blue hover:bg-accent-blue-dark"
               >
-                {updateBalanceMutation.isPending ? 'Updating...' : 'Update Balance'}
+                {updateProductMutation.isPending ? 'Updating...' : 'Update Product'}
               </Button>
               <Button
-                onClick={() => setShowEditBalance(false)}
+                onClick={() => setShowEditProduct(false)}
+                variant="outline"
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Product Confirmation Modal */}
+      <Dialog open={showDeleteProduct} onOpenChange={setShowDeleteProduct}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <i className="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+              <p className="text-white text-lg mb-2">Are you sure you want to delete this product?</p>
+              {productToDelete && (
+                <div className="p-3 bg-gray-800/50 rounded-lg">
+                  <p className="text-white font-semibold">{productToDelete.name}</p>
+                  <p className="text-gray-400 text-sm">{productToDelete.description}</p>
+                  <p className="text-accent-blue font-bold">${productToDelete.price}</p>
+                </div>
+              )}
+              <p className="text-red-400 text-sm mt-3">This action cannot be undone.</p>
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => productToDelete && deleteProductMutation.mutate(productToDelete._id)}
+                disabled={deleteProductMutation.isPending}
+                className="flex-1 bg-red-500 hover:bg-red-600"
+              >
+                {deleteProductMutation.isPending ? 'Deleting...' : 'Delete Product'}
+              </Button>
+              <Button
+                onClick={() => setShowDeleteProduct(false)}
                 variant="outline"
                 className="flex-1 bg-gray-800 border-gray-700 text-white"
               >
@@ -622,22 +950,14 @@ export function SimpleAdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="sendUserId" className="text-gray-400">Select User</Label>
-              <Select
+              <Label htmlFor="sendUserId" className="text-gray-400">User ID</Label>
+              <Input
+                id="sendUserId"
                 value={sendProductForm.userId}
-                onValueChange={(value) => setSendProductForm({ ...sendProductForm, userId: value })}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user: any) => (
-                    <SelectItem key={user._id || user.id} value={user._id || user.id}>
-                      {user.firstName} {user.lastName} (@{user.username})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => setSendProductForm({ ...sendProductForm, userId: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter user ID"
+              />
             </div>
 
             <div>
@@ -709,6 +1029,173 @@ export function SimpleAdminDashboard() {
                 className="flex-1 bg-gray-800 border-gray-700 text-white"
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Balance Management Modals */}
+      {/* Edit Balance Modal */}
+      <Dialog open={showEditBalance} onOpenChange={setShowEditBalance}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit User Balance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="userId" className="text-gray-400">User ID</Label>
+              <Input
+                id="userId"
+                value={balanceForm.userId}
+                onChange={(e) => setBalanceForm({ ...balanceForm, userId: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter user ID"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newBalance" className="text-gray-400">New Balance</Label>
+              <Input
+                id="newBalance"
+                type="number"
+                value={balanceForm.newBalance}
+                onChange={(e) => setBalanceForm({ ...balanceForm, newBalance: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter new balance"
+              />
+            </div>
+            <div>
+              <Label htmlFor="reason" className="text-gray-400">Reason</Label>
+              <Textarea
+                id="reason"
+                value={balanceForm.reason}
+                onChange={(e) => setBalanceForm({ ...balanceForm, reason: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter reason for balance update"
+                rows={3}
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => updateBalanceMutation.mutate(balanceForm)}
+                disabled={updateBalanceMutation.isPending}
+                className="flex-1 bg-accent-blue hover:bg-accent-blue-dark"
+              >
+                {updateBalanceMutation.isPending ? 'Updating...' : 'Update Balance'}
+              </Button>
+              <Button
+                onClick={() => setShowEditBalance(false)}
+                variant="outline"
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fetch User Balance Modal */}
+      <Dialog open={showFetchBalance} onOpenChange={setShowFetchBalance}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Fetch User Balance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="fetchUserId" className="text-gray-400">User ID</Label>
+              <Input
+                id="fetchUserId"
+                value={userBalanceForm.userId}
+                onChange={(e) => setUserBalanceForm({ ...userBalanceForm, userId: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter user ID"
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => fetchUserBalanceMutation.mutate(userBalanceForm.userId)}
+                disabled={fetchUserBalanceMutation.isPending || !userBalanceForm.userId}
+                className="flex-1 bg-accent-blue hover:bg-accent-blue-dark"
+              >
+                {fetchUserBalanceMutation.isPending ? 'Fetching...' : 'Fetch Balance'}
+              </Button>
+              <Button
+                onClick={() => setShowFetchBalance(false)}
+                variant="outline"
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Balance Management Modal */}
+      <Dialog open={showUserBalance} onOpenChange={setShowUserBalance}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Manage User Balance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-800/50 rounded-lg">
+              <p className="text-gray-400">User ID: {userBalanceForm.userId}</p>
+              <p className="text-white font-semibold">Current Balance:</p>
+              <p className="text-accent-blue text-2xl">${userBalanceForm.fetchedBalance}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-400">Add Balance</Label>
+                <Input
+                  type="number"
+                  value={userBalanceForm.addAmount}
+                  onChange={(e) => setUserBalanceForm({ ...userBalanceForm, addAmount: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Amount to add"
+                />
+                <Button
+                  onClick={() => addBalanceMutation.mutate({ 
+                    userId: userBalanceForm.userId, 
+                    amount: parseFloat(userBalanceForm.addAmount) 
+                  })}
+                  disabled={addBalanceMutation.isPending || !userBalanceForm.addAmount}
+                  className="w-full bg-green-500 hover:bg-green-600"
+                >
+                  {addBalanceMutation.isPending ? 'Adding...' : 'Add Balance'}
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-gray-400">Remove Balance</Label>
+                <Input
+                  type="number"
+                  value={userBalanceForm.removeAmount}
+                  onChange={(e) => setUserBalanceForm({ ...userBalanceForm, removeAmount: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Amount to remove"
+                />
+                <Button
+                  onClick={() => removeBalanceMutation.mutate({ 
+                    userId: userBalanceForm.userId, 
+                    amount: parseFloat(userBalanceForm.removeAmount) 
+                  })}
+                  disabled={removeBalanceMutation.isPending || !userBalanceForm.removeAmount}
+                  className="w-full bg-red-500 hover:bg-red-600"
+                >
+                  {removeBalanceMutation.isPending ? 'Removing...' : 'Remove Balance'}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => setShowUserBalance(false)}
+                variant="outline"
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              >
+                Close
               </Button>
             </div>
           </div>

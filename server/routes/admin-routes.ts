@@ -11,11 +11,57 @@ const router = Router();
 // Admin routes for users
 router.get('/users', isAdminAuthenticated, async (req: any, res) => {
   try {
+    console.log('📋 Admin fetching users...');
     const users = await storage.getAllUsers();
-    res.json(users);
+    console.log('👥 Found users:', users.length);
+    console.log('📊 Users data:', users);
+    res.json({ success: true, users });
   } catch (error) {
     console.error("Error fetching users:", error);
-    res.status(500).json({ message: "Failed to fetch users" });
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
+  }
+});
+
+// Get single user by ID
+router.get('/users/:id', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch user" });
+  }
+});
+
+// Update user balance
+router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.params.id;
+    const { balance, reason } = req.body;
+    
+    if (typeof balance !== 'number') {
+      return res.status(400).json({ message: "Balance must be a number" });
+    }
+    
+    const user = await storage.updateUserBalance(userId, balance);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Log the balance change (optional)
+    console.log(`Admin updated user ${userId} balance to ${balance}. Reason: ${reason}`);
+    
+    res.json({ message: "User balance updated successfully", user });
+  } catch (error) {
+    console.error("Error updating user balance:", error);
+    res.status(500).json({ message: "Failed to update user balance" });
   }
 });
 
@@ -101,11 +147,12 @@ router.delete('/products/:id', isAdminAuthenticated, async (req: any, res) => {
 // Admin transaction management
 router.get('/transactions', isAdminAuthenticated, async (req: any, res) => {
   try {
-    const transactions = await storage.getTransactions('', '');
-    res.json(transactions);
+    const status = req.query.status as string;
+    const transactions = await storage.getTransactions('', status || '');
+    res.json({ success: true, transactions });
   } catch (error) {
     console.error("Error fetching admin transactions:", error);
-    res.status(500).json({ message: "Failed to fetch transactions" });
+    res.status(500).json({ success: false, message: "Failed to fetch transactions" });
   }
 });
 
