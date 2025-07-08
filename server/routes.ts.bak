@@ -4,8 +4,15 @@ import { storage } from "./storage";
 import { setupTelegramAuth, isTelegramAuthenticated } from "./telegramAuth";
 import { setupAdminAuth, isAdminAuthenticated } from "./adminAuth";
 import { bot } from "./telegramBot";
-import { insertProductSchema, insertCartSchema, insertTransactionSchema } from "@shared/schema";
-import { z } from "zod";
+import { insertProductSchema, insertCartSchema, insertTransactionSchema } from "@shared/sc  app.get('/api/admin/transactions', isAdminAuthenticated, async (req: any, res) => {
+    try {
+      const transactions = await storage.getTransactions('');
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Telegram auth
@@ -199,8 +206,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin product management
-  app.post('/api/admin/products', isAdminAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/products', isTelegramAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
       
       const productData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(productData);
@@ -214,8 +226,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/products/:id', isAdminAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/products/:id', isTelegramAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
       
       const id = req.params.id;
       const productData = insertProductSchema.partial().parse(req.body);
@@ -233,8 +250,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/products/:id', isAdminAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/products/:id', isTelegramAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
       
       const id = req.params.id;
       const success = await storage.deleteProduct(id);

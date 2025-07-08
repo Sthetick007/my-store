@@ -1,24 +1,14 @@
-import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTelegram } from '@/hooks/useTelegram';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { History } from './History';
 
 export function Settings() {
   const { user, logout } = useAuth();
   const { hapticFeedback } = useTelegram();
-  const [showHistory, setShowHistory] = useState(false);
-  const [showAddFunds, setShowAddFunds] = useState(false);
-
-  const handleAddFunds = () => {
-    hapticFeedback('medium');
-    setShowAddFunds(true);
-  };
 
   const handleLogout = () => {
     hapticFeedback('medium');
@@ -41,25 +31,6 @@ export function Settings() {
 
   return (
     <div className="p-4 space-y-6">
-      {/* User Profile Card */}
-      {/* Balance Card */}
-      <Card className="bg-accent-blue/20 backdrop-blur-sm border-accent-blue/30">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="bg-accent-blue/30 p-3 rounded-full mr-3">
-              <i className="fas fa-coins text-accent-blue text-xl"></i>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Available Balance</p>
-              <h3 className="text-xl font-bold text-white">${user.balance?.toFixed(2) || '0.00'}</h3>
-            </div>
-          </div>
-          <Button size="sm" className="bg-accent-blue hover:bg-accent-blue-dark" onClick={handleAddFunds}>
-            <i className="fas fa-plus mr-1"></i>
-            Add Funds
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* User Profile Card */}
       <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
@@ -95,15 +66,6 @@ export function Settings() {
 
       {/* Settings Options */}
       <div className="space-y-3">
-        <Button
-          variant="outline"
-          className="w-full justify-start bg-dark-card/30 border-gray-700 text-white hover:bg-dark-card/50"
-          onClick={() => setShowHistory(true)}
-        >
-          <i className="fas fa-history mr-3 text-gray-400"></i>
-          Transaction History
-        </Button>
-
         <Separator className="bg-gray-700 my-4" />
 
         <Button
@@ -135,48 +97,6 @@ export function Settings() {
           Logout
         </Button>
       </div>
-
-      {/* History Modal */}
-      <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white">Transaction History</DialogTitle>
-          </DialogHeader>
-          <History />
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Funds Modal */}
-      <Dialog open={showAddFunds} onOpenChange={setShowAddFunds}>
-        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-white">Add Funds</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <h3 className="text-white font-medium">Select Amount</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {[10, 25, 50, 100, 200, 500].map((amount) => (
-                  <Button 
-                    key={amount}
-                    variant="outline"
-                    className="border-gray-700 hover:border-accent-blue hover:bg-accent-blue/20"
-                  >
-                    ${amount}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="pt-4">
-              <Button className="w-full bg-accent-blue hover:bg-accent-blue-dark">
-                <i className="fas fa-credit-card mr-2"></i>
-                Proceed to Payment
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

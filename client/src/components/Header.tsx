@@ -1,4 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTelegram } from '@/hooks/useTelegram';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -11,12 +12,12 @@ interface HeaderProps {
 export function Header({ onAdminToggle, showAdminSwitch }: HeaderProps = {}) {
   const { user: authUser } = useAuth();
   const { user: telegramUser } = useTelegram();
+  const { isEligibleForAdmin, isAdminLoggedIn } = useAdminAuth();
 
   const displayName = authUser?.firstName || telegramUser?.first_name || 'User';
   const username = authUser?.username || telegramUser?.username || 'user';
   const avatarUrl = authUser?.profileImageUrl || telegramUser?.photo_url;
   const balance = authUser?.balance || '0.00';
-  const isAdmin = authUser?.isAdmin;
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-dark-glass border-b border-gray-800">
@@ -35,7 +36,7 @@ export function Header({ onAdminToggle, showAdminSwitch }: HeaderProps = {}) {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            {isAdmin && showAdminSwitch && (
+            {showAdminSwitch && (
               <Button
                 size="sm"
                 variant="outline"
@@ -43,7 +44,7 @@ export function Header({ onAdminToggle, showAdminSwitch }: HeaderProps = {}) {
                 className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30 text-xs px-2 py-1"
               >
                 <i className="fas fa-shield-alt mr-1"></i>
-                Admin
+                {isAdminLoggedIn ? 'Admin Panel' : 'Admin Login'}
               </Button>
             )}
             <div className="text-right">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
@@ -46,6 +46,14 @@ export function AdminDashboard() {
   const [showSendMessage, setShowSendMessage] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
+  
+  // Get the admin token from localStorage
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    console.log('Admin token found:', !!token);
+    setAdminToken(token);
+  }, []);
   const [messageForm, setMessageForm] = useState({
     userId: '',
     productId: '',
@@ -70,23 +78,35 @@ export function AdminDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check if user is admin
-  if (!user?.isAdmin) {
+  // Check if admin token exists
+  if (!adminToken) {
     return (
       <div className="p-4 pb-24 text-center">
         <i className="fas fa-lock text-gray-500 text-4xl mb-4"></i>
         <p className="text-gray-400 text-lg">Access Denied</p>
-        <p className="text-gray-500 text-sm">Admin privileges required</p>
+        <p className="text-gray-500 text-sm">Admin authentication required</p>
       </div>
     );
   }
 
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
+    queryFn: async () => {
+      return await apiRequest('GET', '/api/admin/stats', {}, {
+        'Authorization': `Bearer ${adminToken}`
+      });
+    },
+    enabled: !!adminToken
   });
 
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      return await apiRequest('GET', '/api/admin/users', {}, {
+        'Authorization': `Bearer ${adminToken}`
+      });
+    },
+    enabled: !!adminToken
   });
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
