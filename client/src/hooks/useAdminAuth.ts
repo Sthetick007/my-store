@@ -6,60 +6,44 @@ export function useAdminAuth() {
   const queryClient = useQueryClient();
   
   const { data: response, isLoading } = useQuery({
-    queryKey: ["/api/admin/check-eligibility"],
+    queryKey: ["/api/admin/verify"],
     queryFn: async () => {
-      const userToken = localStorage.getItem('telegram_token');
-      
-      // Check admin eligibility first with regular user token
-      if (userToken) {
-        try {
-          const eligibilityCheck = await apiRequest('GET', '/api/admin/check-eligibility', {}, {
-            'Authorization': `Bearer ${userToken}`
-          });
-          
-          return eligibilityCheck;
-        } catch (error) {
-          console.error('Admin eligibility check failed:', error);
-          return { success: false, eligible: false };
-        }
-      }
-      
       // If we have an admin token, verify it
       if (token) {
         try {
-          // Use admin token to check if it's valid
-          const adminCheck = await apiRequest('GET', '/api/admin/check-eligibility', {}, {
+          // Use admin token to check if it's valid by making a test request
+          const adminCheck = await apiRequest('GET', '/api/admin/stats', {}, {
             'Authorization': `Bearer ${token}`
           });
           
-          if (adminCheck.success && adminCheck.isAdmin) {
-            return { success: true, eligible: true, isAdmin: true };
+          if (adminCheck.success) {
+            return { success: true, isAdmin: true };
           }
           
           // If admin token is invalid, clear it
           localStorage.removeItem('admin_token');
-          return { success: false, eligible: false };
+          return { success: false, isAdmin: false };
         } catch (error) {
           console.error('Admin token check failed:', error);
           localStorage.removeItem('admin_token');
-          return { success: false, eligible: false };
+          return { success: false, isAdmin: false };
         }
       }
       
-      return { success: false, eligible: false };
+      return { success: false, isAdmin: false };
     },
     retry: false,
     refetchOnWindowFocus: false,
+    enabled: !!token, // Only run query if we have a token
   });
 
   const adminLogout = async () => {
     localStorage.removeItem('admin_token');
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/check-eligibility"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/verify"] });
     queryClient.removeQueries({ queryKey: ["/api/admin"] });
   };
 
   return {
-    isEligibleForAdmin: response?.eligible || false,
     isAdminLoggedIn: response?.isAdmin || false,
     isLoading,
     adminLogout,

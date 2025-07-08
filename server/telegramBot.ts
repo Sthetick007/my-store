@@ -91,6 +91,27 @@ Tap the button below to start shopping!`;
     });
   });
 
+  // Admin command - restricted access to admin panel
+  bot.onText(/\/admin/, (msg) => {
+    const chatId = msg.chat.id;
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: '🔐 Admin Login',
+            web_app: { url: `${WEBAPP_URL}/admin` }
+          }
+        ]
+      ]
+    };
+
+    bot?.sendMessage(chatId, '🔐 <b>Admin Panel Access</b>\n\nAccess the admin dashboard to manage products, users, and system settings.\n\n⚠️ <i>This area is restricted to authorized administrators only.</i>', {
+      reply_markup: keyboard,
+      parse_mode: 'HTML'
+    });
+  });
+
   // Help command
   bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
@@ -101,6 +122,7 @@ Tap the button below to start shopping!`;
 /start - Welcome message & main menu
 /store - Browse our product catalog
 /wallet - Access your digital wallet
+/admin - Admin panel access (restricted)
 /help - Show this help message
 
 <b>How to use:</b>

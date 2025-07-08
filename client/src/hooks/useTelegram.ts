@@ -10,6 +10,13 @@ export function useTelegram() {
     // Check if we're running in Telegram WebApp
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
+      console.log('🔗 Telegram WebApp detected:', {
+        initData: !!tg.initData,
+        initDataUnsafe: tg.initDataUnsafe,
+        user: tg.initDataUnsafe?.user,
+        version: tg.version
+      });
+      
       setWebApp(tg);
       setUser(tg.initDataUnsafe.user || null);
       
@@ -36,6 +43,7 @@ export function useTelegram() {
       tg.isClosingConfirmationEnabled = true;
     } else {
       // Development mode - set up mock data
+      console.log('⚠️ Development mode - using mock Telegram data');
       setIsReady(true);
       setUser({
         id: 123456789,
@@ -44,6 +52,53 @@ export function useTelegram() {
         username: 'devuser',
         language_code: 'en',
       });
+      
+      // Create mock WebApp object for development
+      const mockWebApp = {
+        initData: '',
+        initDataUnsafe: {
+          user: {
+            id: 123456789,
+            first_name: 'Dev',
+            last_name: 'User',
+            username: 'devuser',
+            language_code: 'en',
+          }
+        },
+        version: '6.0',
+        platform: 'unknown',
+        colorScheme: 'dark',
+        themeParams: {},
+        isExpanded: true,
+        viewportHeight: window.innerHeight,
+        viewportStableHeight: window.innerHeight,
+        ready: () => {},
+        expand: () => {},
+        close: () => {},
+        MainButton: {
+          text: '',
+          color: '',
+          textColor: '',
+          isVisible: false,
+          isActive: true,
+          isProgressVisible: false,
+          setText: () => {},
+          onClick: () => {},
+          offClick: () => {},
+          show: () => {},
+          hide: () => {},
+          enable: () => {},
+          disable: () => {},
+          showProgress: () => {},
+          hideProgress: () => {}
+        },
+        onEvent: () => {},
+        offEvent: () => {},
+        sendData: () => {},
+        isClosingConfirmationEnabled: false
+      } as TelegramWebApp;
+      
+      setWebApp(mockWebApp);
     }
   }, []);
 

@@ -82,10 +82,11 @@ export function History({ limit }: HistoryProps = {}) {
   };
 
   return (
-    <div className="pb-4">
+    <div className="space-y-4">
       {/* Filter Controls */}
-      <div className="p-4">
-        <div className="flex space-x-3 mb-4 overflow-x-auto">
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-white">Transaction History</h3>
+        <div className="flex space-x-2 overflow-x-auto pb-2">
           {filters.map((filter) => (
             <Button
               key={filter.id}
@@ -93,7 +94,7 @@ export function History({ limit }: HistoryProps = {}) {
               size="sm"
               onClick={() => setSelectedFilter(filter.id)}
               className={cn(
-                'whitespace-nowrap',
+                'whitespace-nowrap flex-shrink-0',
                 selectedFilter === filter.id
                   ? 'bg-accent-blue text-white'
                   : 'bg-dark-card/70 backdrop-blur-sm text-gray-300 border-gray-700 hover:border-accent-blue'
@@ -105,9 +106,8 @@ export function History({ limit }: HistoryProps = {}) {
         </div>
       </div>
 
-      {/* Transaction History */}
-      <div className="px-4">
-        <h3 className="text-lg font-bold text-white mb-4">Transaction History</h3>
+      {/* Transaction List */}
+      <div className="space-y-3">
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (

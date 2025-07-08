@@ -1,18 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTelegram } from '@/hooks/useTelegram';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 
-interface HeaderProps {
-  onAdminToggle?: () => void;
-  showAdminSwitch?: boolean;
-}
-
-export function Header({ onAdminToggle, showAdminSwitch }: HeaderProps = {}) {
+export function Header() {
   const { user: authUser } = useAuth();
   const { user: telegramUser } = useTelegram();
-  const { isEligibleForAdmin, isAdminLoggedIn } = useAdminAuth();
 
   const displayName = authUser?.firstName || telegramUser?.first_name || 'User';
   const username = authUser?.username || telegramUser?.username || 'user';
@@ -36,17 +28,6 @@ export function Header({ onAdminToggle, showAdminSwitch }: HeaderProps = {}) {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            {showAdminSwitch && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onAdminToggle}
-                className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30 text-xs px-2 py-1"
-              >
-                <i className="fas fa-shield-alt mr-1"></i>
-                {isAdminLoggedIn ? 'Admin Panel' : 'Admin Login'}
-              </Button>
-            )}
             <div className="text-right">
               <div className="flex items-center space-x-2">
                 <i className="fas fa-wallet text-accent-blue text-sm"></i>

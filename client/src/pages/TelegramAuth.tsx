@@ -31,10 +31,15 @@ export default function TelegramAuth({ onSuccess }: TelegramAuthProps) {
       let initData = '';
       
       if (webApp && webApp.initData) {
-        console.log('Using real Telegram WebApp data');
+        console.log('✅ Using real Telegram WebApp data');
+        console.log('WebApp data:', {
+          hasInitData: !!webApp.initData,
+          dataLength: webApp.initData.length,
+          user: webApp.initDataUnsafe?.user
+        });
         initData = webApp.initData;
       } else if (telegramUser) {
-        console.log('Using mock Telegram data for development');
+        console.log('⚠️ Using mock Telegram data for development');
         // For development - create mock initData
         const mockInitData = new URLSearchParams({
           user: JSON.stringify(telegramUser),
@@ -46,12 +51,17 @@ export default function TelegramAuth({ onSuccess }: TelegramAuthProps) {
         throw new Error('No Telegram data available. Please open this app through Telegram.');
       }
       
-      console.log('Sending auth request with initData:', initData);
+      console.log('📤 Sending auth request with initData length:', initData.length);
       const response = await apiRequest('POST', '/api/auth/verify', { initData });
       
-      console.log('Auth response:', response);
+      console.log('📥 Auth response:', {
+        success: response.success,
+        hasToken: !!response.token,
+        user: response.user,
+        message: response.message
+      });
       
-      if (response.success) {
+      if (response.success && response.token) {
         // Store the JWT token
         localStorage.setItem('telegram_token', response.token);
         
@@ -65,10 +75,10 @@ export default function TelegramAuth({ onSuccess }: TelegramAuthProps) {
           onSuccess();
         }, 1500);
       } else {
-        throw new Error(response.message || 'Authentication failed');
+        throw new Error(response.message || 'Authentication failed - no token received');
       }
     } catch (error) {
-      console.error('Authentication failed:', error);
+      console.error('❌ Authentication failed:', error);
       setAuthError(error instanceof Error ? error.message : 'Authentication failed');
       setIsConnecting(false);
     }

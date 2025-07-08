@@ -14,52 +14,112 @@ const userStorage = new UserStorage();
 function verifyTelegramInitData(initData: string): boolean {
     console.log('🔍 Verifying initData:', initData.substring(0, 200) + '...');
     
+    // Allow dev mode with mock hash
     if (initData.includes('dev_mock_hash')) {
-        console.log('✅ Using dev mock hash');
+        console.log('✅ Using dev mock hash - DEVELOPMENT MODE');
         return true;
     }
     
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-    
-    console.log('📝 Hash from initData:', hash);
-    
-    urlParams.delete('hash');
-    const dataCheckArray: string[] = [];
-    urlParams.forEach((value, key) => {
-        dataCheckArray.push(`${key}=${value}`);
-    });
-    dataCheckArray.sort();
-    const dataCheckString = dataCheckArray.join('\n');
-    
-    console.log('📊 Data check string:', dataCheckString);
-    
-    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-    const authDate = parseInt(urlParams.get('auth_date') || '0');
-    const now = Math.floor(Date.now() / 1000);
-    
-    console.log('🔑 Verification details:', {
-        providedHash: hash,
-        calculatedHash: calculatedHash,
-        authDate: authDate,
-        now: now,
-        timeDiff: now - authDate,
-        hashMatch: calculatedHash === hash,
-        timeValid: (now - authDate) < 24*60*60
-    });
-    
-    return calculatedHash === hash && (now - authDate) < 24*60*60;
+    try {
+        const urlParams = new URLSearchParams(initData);
+        const hash = urlParams.get('hash');
+        
+        if (!hash) {
+            console.log('❌ No hash found in initData');
+            return false;
+        }
+        
+        console.log('📝 Hash from initData:', hash);
+        
+        // Remove hash from params for verification
+        urlParams.delete('hash');
+        const dataCheckArray: string[] = [];
+        urlParams.forEach((value, key) => {
+            dataCheckArray.push(`${key}=${value}`);
+        });
+        dataCheckArray.sort();
+        const dataCheckString = dataCheckArray.join('\n');
+        
+        console.log('📊 Data check string:', dataCheckString);
+        
+        // Create secret key from bot token
+        const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+        const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+        
+        // Check auth_date (should be within last 24 hours)
+        const authDate = parseInt(urlParams.get('auth_date') || '0');
+        const now = Math.floor(Date.now() / 1000);
+        const timeDiff = now - authDate;
+        const isTimeValid = timeDiff < 24 * 60 * 60; // 24 hours
+        
+        console.log('🔑 Verification details:', {
+            providedHash: hash,
+            calculatedHash: calculatedHash,
+            authDate: authDate,
+            now: now,
+            timeDiff: timeDiff,
+            hashMatch: calculatedHash === hash,
+            timeValid: isTimeValid
+        });
+        
+        const isValid = calculatedHash === hash && isTimeValid;
+        
+        if (!isValid) {
+            console.log('❌ Telegram auth verification failed');
+            if (calculatedHash !== hash) {
+                console.log('Hash mismatch - possible data tampering');
+            }
+            if (!isTimeValid) {
+                console.log('Auth data too old - please refresh');
+            }
+        } else {
+            console.log('✅ Telegram auth verification successful');
+        }
+        
+        return isValid;
+    } catch (error) {
+        console.error('❌ Error during Telegram auth verification:', error);
+        return false;
+    }
 }
 
 function parseUser(initData: string) {
-    const urlParams = new URLSearchParams(initData);
-    const userParam = urlParams.get('user');
-    if (userParam) {
-        return JSON.parse(decodeURIComponent(userParam));
+    try {
+        const urlParams = new URLSearchParams(initData);
+        const userParam = urlParams.get('user');
+        
+        if (userParam) {
+            const user = JSON.parse(decodeURIComponent(userParam));
+            console.log('📋 Parsed real Telegram user:', {
+                id: user.id,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                language_code: user.language_code
+            });
+            return user;
+        }
+        
+        // Fallback for dev mode
+        console.log('⚠️ No user param found, using dev fallback');
+        return { 
+            id: 'dev_123456789', 
+            username: 'devuser', 
+            first_name: 'Dev',
+            last_name: 'User',
+            language_code: 'en'
+        };
+    } catch (error) {
+        console.error('❌ Error parsing user data:', error);
+        // Return dev user as fallback
+        return { 
+            id: 'dev_123456789', 
+            username: 'devuser', 
+            first_name: 'Dev',
+            last_name: 'User',
+            language_code: 'en'
+        };
     }
-    // Fallback for dev mode
-    return { id: 'dev_123456789', username: 'devuser', first_name: 'Dev' };
 }
 
 export function setupTelegramAuth(app: express.Express) {
