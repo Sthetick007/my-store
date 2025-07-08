@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { TelegramWebApp } from '@/components/TelegramWebApp';
 import { Header } from '@/components/Header';
@@ -15,10 +16,20 @@ import type { TabType } from '@/types';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('store');
+  const [location] = useLocation();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const { user } = useAuth();
+
+  // Handle deep linking from URL parameters
+  useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab') as TabType;
+    if (tab && ['store', 'wallet', 'products', 'settings'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  });
 
   const handleAdminToggle = () => {
     setIsAdminMode(!isAdminMode);

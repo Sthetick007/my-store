@@ -59,6 +59,7 @@ export function Store() {
   const categories = ['OTT', 'VPN', 'Others'];
 
   const handleAddToCart = (productId: number) => {
+    hapticFeedback('light');
     addToCartMutation.mutate({ productId, quantity: 1 });
   };
 
