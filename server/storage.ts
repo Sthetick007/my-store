@@ -252,6 +252,24 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(transactions.createdAt))
       .limit(10);
   }
+
+  // Get all transactions for admin (no user filter)
+  async getAllTransactions(): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  // Get pending transactions count
+  async getPendingTransactionsCount(): Promise<number> {
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.status, "pending"));
+    
+    return result.length;
+  }
 }
 
 export const storage = new DatabaseStorage();

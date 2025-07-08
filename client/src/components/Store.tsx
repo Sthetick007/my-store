@@ -59,6 +59,7 @@ export function Store() {
   const categories = ['OTT', 'VPN', 'Others'];
 
   const handleAddToCart = (productId: number) => {
+    hapticFeedback('light');
     addToCartMutation.mutate({ productId, quantity: 1 });
   };
 
@@ -97,7 +98,7 @@ export function Store() {
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             ) : (
               <i className="fas fa-plus text-white text-xs"></i>
-            )}
+                <i className="fas fa-tv text-gray-500 text-3xl"></i>
           </Button>
         </div>
       </CardContent>

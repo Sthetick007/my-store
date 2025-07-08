@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
+import { useLocation } from 'wouter';
 
 interface TelegramWebAppProps {
   children: React.ReactNode;
@@ -7,11 +8,20 @@ interface TelegramWebAppProps {
 
 export function TelegramWebApp({ children }: TelegramWebAppProps) {
   const { webApp, isReady } = useTelegram();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (webApp && isReady) {
       // Set up theme variables
       document.documentElement.classList.add('dark');
+      
+      // Handle URL parameters for deep linking
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab) {
+        // Navigate to specific tab if provided
+        setLocation(`/?tab=${tab}`);
+      }
       
       // Handle viewport changes
       const handleViewportChange = () => {
@@ -39,7 +49,7 @@ export function TelegramWebApp({ children }: TelegramWebAppProps) {
         webApp.offEvent('themeChanged', handleThemeChange);
       };
     }
-  }, [webApp, isReady]);
+  }, [webApp, isReady, setLocation]);
 
   if (!isReady) {
     return (

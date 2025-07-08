@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupTelegramAuth, isTelegramAuthenticated } from "./telegramAuth";
+import { bot } from "./telegramBot";
 import { insertProductSchema, insertCartSchema, insertTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -261,7 +262,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      bot: bot ? 'connected' : 'disabled',
+      database: 'connected'
+    });
+  });
+
+  // Webhook endpoint for Telegram bot (production)
+  app.post('/api/webhook', (req, res) => {
+    if (bot) {
+      bot.processUpdate(req.body);
+    }
+    res.sendStatus(200);
   });
 
   // Admin routes

@@ -155,13 +155,13 @@ export function PaymentOptions() {
           
           <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
             <div className="flex items-center space-x-3">
-              <i className="fab fa-bitcoin text-orange-400 text-xl"></i>
+              <i className="fas fa-qrcode text-blue-400 text-xl"></i>
               <div>
-                <p className="text-white font-medium">Bitcoin</p>
-                <p className="text-gray-400 text-sm">Cryptocurrency</p>
+                <p className="text-white font-medium">QR Code</p>
+                <p className="text-gray-400 text-sm">Scan to pay</p>
               </div>
             </div>
-            <Badge className="bg-blue-500 text-white">Secure</Badge>
+            <Badge className="bg-blue-500 text-white">Fast</Badge>
           </div>
         </CardContent>
       </Card>
