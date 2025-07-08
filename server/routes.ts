@@ -51,11 +51,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cart routes (bypass auth in dev)
-  app.get('/api/cart', async (req: any, res) => {
+  // Cart routes (protected by auth)
+  app.get('/api/cart', isTelegramAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789'; // Mock user for dev
+      const userId = req.user?.id;
+      console.log('Fetching cart for user:', userId);
       const cartItems = await storage.getCartItems(userId);
+      console.log('Found cart items:', cartItems.length);
       res.json(cartItems);
     } catch (error) {
       console.error("Error fetching cart:", error);
@@ -63,11 +65,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/cart', async (req: any, res) => {
+  app.post('/api/cart', isTelegramAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789'; // Mock user for dev
+      const userId = req.user?.id;
+      console.log('Adding to cart for user:', userId, 'product:', req.body.productId);
       const cartData = insertCartSchema.parse({ ...req.body, userId });
       const cartItem = await storage.addToCart(cartData);
+      console.log('Added item to cart:', cartItem);
       res.json(cartItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -78,10 +82,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/cart/:id', async (req: any, res) => {
+  app.put('/api/cart/:id', isTelegramAuthenticated, async (req: any, res) => {
     try {
       const id = req.params.id;
       const { quantity } = req.body;
+      console.log('Updating cart item:', id, 'quantity:', quantity);
       const cartItem = await storage.updateCartItem(id, quantity);
       if (!cartItem) {
         return res.status(404).json({ message: "Cart item not found" });
@@ -93,9 +98,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/cart/:id', async (req: any, res) => {
+  app.delete('/api/cart/:id', isTelegramAuthenticated, async (req: any, res) => {
     try {
       const id = req.params.id;
+      console.log('Removing item from cart:', id);
       const success = await storage.removeFromCart(id);
       if (!success) {
         return res.status(404).json({ message: "Cart item not found" });
@@ -107,9 +113,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/cart', async (req: any, res) => {
+  app.delete('/api/cart', isTelegramAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789'; // Mock user for dev
+      const userId = req.user?.id;
+      console.log('Clearing cart for user:', userId);
       const success = await storage.clearCart(userId);
       res.json({ message: "Cart cleared" });
     } catch (error) {
@@ -118,12 +125,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Transaction routes (bypass auth in dev)
-  app.get('/api/transactions', async (req: any, res) => {
+  // Transaction routes
+  app.get('/api/transactions', isTelegramAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789'; // Mock user for dev
+      const userId = req.user.id;
+      console.log('Fetching transactions for user:', userId);
       const { type } = req.query;
       const transactions = await storage.getTransactions(userId, type as string);
+      console.log('Found transactions:', transactions.length);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -131,9 +140,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/transactions', async (req: any, res) => {
+  app.post('/api/transactions', isTelegramAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id || '123456789'; // Mock user for dev
+      const userId = req.user.id;
+      console.log('Creating transaction for user:', userId, 'type:', req.body.type, 'amount:', req.body.amount);
       const transactionData = insertTransactionSchema.parse({ 
         ...req.body, 
         userId,
@@ -490,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { userId: targetUserId, productId, message, credentials } = req.body;
+      const { userId: targetUserId, productId, message: userMessage, credentials } = req.body;
       
       // In a real app, this would insert into a product_messages table
       // For now, we'll return success
@@ -498,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Message sent successfully",
         targetUserId,
         productId,
-        message,
+        userMessage,
         credentials 
       });
     } catch (error) {

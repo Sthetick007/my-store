@@ -23,15 +23,24 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
 
   const { data: cartItems, isLoading } = useQuery<CartItem[]>({
     queryKey: ['/api/cart'],
+    queryFn: async () => {
+      return await apiRequest('GET', '/api/cart', undefined, {
+        'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+      });
+    },
     enabled: isOpen,
   });
 
   const updateQuantityMutation = useMutation({
-    mutationFn: async ({ id, quantity }: { id: number; quantity: number }) => {
+    mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
       if (quantity <= 0) {
-        await apiRequest('DELETE', `/api/cart/${id}`);
+        return await apiRequest('DELETE', `/api/cart/${id}`, undefined, {
+          'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+        });
       } else {
-        await apiRequest('PUT', `/api/cart/${id}`, { quantity });
+        return await apiRequest('PUT', `/api/cart/${id}`, { quantity }, {
+          'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+        });
       }
     },
     onSuccess: () => {
@@ -87,8 +96,8 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
   const totalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const totalPrice = cartItems?.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0) || 0;
 
-  const handleQuantityChange = (id: number, change: number) => {
-    const item = cartItems?.find(item => item.id === id);
+  const handleQuantityChange = (id: string, change: number) => {
+    const item = cartItems?.find(item => item._id === id);
     if (item) {
       const newQuantity = item.quantity + change;
       updateQuantityMutation.mutate({ id, quantity: newQuantity });
@@ -147,14 +156,14 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
               <>
                 <div className="space-y-3">
                   {cartItems?.map((item) => (
-                    <Card key={item.id} className="bg-dark-card/50 border-gray-700">
+                    <Card key={item._id} className="bg-dark-card/50 border-gray-700">
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
-                              {item.product.imageUrl ? (
+                              {item.product.image_url ? (
                                 <img
-                                  src={item.product.imageUrl}
+                                  src={item.product.image_url}
                                   alt={item.product.name}
                                   className="w-full h-full object-cover rounded-lg"
                                 />
@@ -172,7 +181,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleQuantityChange(item.id, -1)}
+                                onClick={() => handleQuantityChange(item._id, -1)}
                                 disabled={updateQuantityMutation.isPending}
                                 className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-accent-blue"
                               >
@@ -184,7 +193,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleQuantityChange(item.id, 1)}
+                                onClick={() => handleQuantityChange(item._id, 1)}
                                 disabled={updateQuantityMutation.isPending}
                                 className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-accent-blue"
                               >

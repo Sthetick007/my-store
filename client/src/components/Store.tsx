@@ -35,8 +35,10 @@ export function Store() {
   });
 
   const addToCartMutation = useMutation({
-    mutationFn: async ({ productId, quantity }: { productId: number; quantity: number }) => {
-      await apiRequest('POST', '/api/cart', { productId, quantity });
+    mutationFn: async ({ productId, quantity }: { productId: string; quantity: number }) => {
+      return await apiRequest('POST', '/api/cart', { productId, quantity }, {
+        'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+      });
     },
     onSuccess: () => {
       hapticFeedback('success');
@@ -58,7 +60,7 @@ export function Store() {
 
   const categories = ['OTT', 'VPN', 'Others'];
 
-  const handleAddToCart = (productId: number) => {
+  const handleAddToCart = (productId: string) => {
     hapticFeedback('light');
     addToCartMutation.mutate({ productId, quantity: 1 });
   };
@@ -90,7 +92,7 @@ export function Store() {
           <span className="text-accent-blue font-bold text-sm">${product.price}</span>
           <Button
             size="sm"
-            onClick={() => handleAddToCart(product.id)}
+            onClick={() => handleAddToCart(product._id!)}
             disabled={addToCartMutation.isPending}
             className="w-8 h-8 bg-accent-blue hover:bg-accent-blue-dark rounded-full p-0"
           >
@@ -172,7 +174,7 @@ export function Store() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {featuredProducts?.slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product._id} product={product} />
               ))}
             </div>
           )}
@@ -209,7 +211,7 @@ export function Store() {
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {products?.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product._id} product={product} />
             ))}
           </div>
         )}

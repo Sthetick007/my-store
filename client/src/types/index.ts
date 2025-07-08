@@ -110,14 +110,14 @@ declare global {
 export type TabType = 'store' | 'wallet' | 'products' | 'settings' | 'admin';
 
 export interface CartItem {
-  id: number;
-  productId: number;
+  _id: string;
+  productId: string;
   quantity: number;
   product: {
-    id: number;
+    _id: string;
     name: string;
     price: string;
-    imageUrl?: string;
+    image_url?: string;
   };
 }
 
