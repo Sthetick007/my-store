@@ -11,15 +11,14 @@ import { History } from './History';
 import { MyProducts } from './MyProducts';
 
 export function Settings() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { hapticFeedback } = useTelegram();
   const [showHistory, setShowHistory] = useState(false);
   const [showMyProducts, setShowMyProducts] = useState(false);
 
   const handleLogout = () => {
     hapticFeedback('impact');
-    // In a real app, this would clear session and redirect
-    window.location.href = '/api/logout';
+    logout();
   };
 
   const handleContactUs = () => {

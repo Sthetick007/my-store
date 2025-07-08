@@ -12,18 +12,43 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || 'dummy';
 const userStorage = new UserStorage();
 
 function verifyTelegramInitData(initData: string): boolean {
-    if (initData.includes('dev_mock_hash')) return true;
+    console.log('🔍 Verifying initData:', initData.substring(0, 200) + '...');
+    
+    if (initData.includes('dev_mock_hash')) {
+        console.log('✅ Using dev mock hash');
+        return true;
+    }
+    
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
+    
+    console.log('📝 Hash from initData:', hash);
+    
     urlParams.delete('hash');
     const dataCheckArray: string[] = [];
-    for (const [key, value] of urlParams.entries()) dataCheckArray.push(`${key}=${value}`);
+    urlParams.forEach((value, key) => {
+        dataCheckArray.push(`${key}=${value}`);
+    });
     dataCheckArray.sort();
     const dataCheckString = dataCheckArray.join('\n');
+    
+    console.log('📊 Data check string:', dataCheckString);
+    
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
     const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
     const authDate = parseInt(urlParams.get('auth_date') || '0');
     const now = Math.floor(Date.now() / 1000);
+    
+    console.log('🔑 Verification details:', {
+        providedHash: hash,
+        calculatedHash: calculatedHash,
+        authDate: authDate,
+        now: now,
+        timeDiff: now - authDate,
+        hashMatch: calculatedHash === hash,
+        timeValid: (now - authDate) < 24*60*60
+    });
+    
     return calculatedHash === hash && (now - authDate) < 24*60*60;
 }
 
@@ -40,11 +65,26 @@ function parseUser(initData: string) {
 export function setupTelegramAuth(app: express.Express) {
     app.post('/api/auth/verify', async (req, res) => {
         const { initData } = req.body;
+        
+        console.log('🔐 Auth request received:', {
+            hasInitData: !!initData,
+            initDataLength: initData?.length || 0,
+            initDataPreview: initData ? initData.substring(0, 100) + '...' : 'none'
+        });
+        
         if (!initData || !verifyTelegramInitData(initData)) {
+            console.log('❌ Auth failed: Invalid Telegram auth');
             return res.json({ success: false, message: 'Invalid Telegram auth' });
         }
         
         const telegramUser = parseUser(initData);
+        
+        console.log('👤 Parsed Telegram user:', {
+            id: telegramUser.id,
+            username: telegramUser.username,
+            firstName: telegramUser.first_name,
+            lastName: telegramUser.last_name
+        });
         
         // Store/update user in JSON file
         const userData = userStorage.createOrUpdateUser(telegramUser);
