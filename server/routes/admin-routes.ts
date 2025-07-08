@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { insertProductSchema } from "@shared/schema";
+import { insertProductSchema, insertSentProductSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAdminAuthenticated } from "../adminAuth";
+import { SentProduct } from "../models/SentProduct";
+import { Product } from "../models/Product";
 
 const router = Router();
 
@@ -166,6 +168,51 @@ router.post('/messages', isAdminAuthenticated, async (req: any, res) => {
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({ message: "Failed to send message" });
+  }
+});
+
+// Send product to user
+router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const { userId, productId, username, password, instructions } = req.body;
+    
+    // Validate required fields
+    if (!userId || !productId || !username || !password) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    
+    // Get product details
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    
+    // Create sent product record
+    const sentProduct = new SentProduct({
+      userId,
+      productId,
+      productName: product.name,
+      username,
+      password,
+      instructions: instructions || '',
+      sentAt: new Date(),
+      isActive: true,
+    });
+    
+    await sentProduct.save();
+    
+    res.json({ 
+      message: "Product sent successfully",
+      sentProduct: {
+        id: sentProduct._id,
+        productName: product.name,
+        username,
+        instructions
+      }
+    });
+  } catch (error) {
+    console.error("Error sending product:", error);
+    res.status(500).json({ message: "Failed to send product" });
   }
 });
 

@@ -29,7 +29,6 @@ export function SimpleAdminDashboard() {
     name: '',
     description: '',
     price: '',
-    category: '',
     imageUrl: '',
     stock: '0'
   });
@@ -38,6 +37,14 @@ export function SimpleAdminDashboard() {
     userId: '',
     newBalance: '',
     reason: ''
+  });
+
+  const [sendProductForm, setSendProductForm] = useState({
+    userId: '',
+    productId: '',
+    username: '',
+    password: '',
+    instructions: ''
   });
 
   const { toast } = useToast();
@@ -61,6 +68,16 @@ export function SimpleAdminDashboard() {
     }
   });
 
+  // Fetch products
+  const { data: products = [] } = useQuery({
+    queryKey: ['/api/products'],
+    queryFn: async () => {
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json();
+    }
+  });
+
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     window.location.href = '/';
@@ -74,7 +91,6 @@ export function SimpleAdminDashboard() {
         name: productData.name,
         description: productData.description,
         price: parseFloat(productData.price),
-        category: productData.category,
         imageUrl: productData.imageUrl,
         stock: parseInt(productData.stock)
       }, {
@@ -88,7 +104,6 @@ export function SimpleAdminDashboard() {
         name: '',
         description: '',
         price: '',
-        category: '',
         imageUrl: '',
         stock: '0'
       });
@@ -166,6 +181,40 @@ export function SimpleAdminDashboard() {
       toast({ 
         title: 'Error declining transaction', 
         description: error.message || 'Failed to decline transaction',
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  // Send Product Mutation
+  const sendProductMutation = useMutation({
+    mutationFn: async (data: typeof sendProductForm) => {
+      const token = localStorage.getItem('admin_token');
+      return await apiRequest('POST', '/api/admin/send-product', {
+        userId: data.userId,
+        productId: data.productId,
+        username: data.username,
+        password: data.password,
+        instructions: data.instructions
+      }, {
+        'Authorization': `Bearer ${token}`
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Product sent successfully!' });
+      setShowSendProduct(false);
+      setSendProductForm({
+        userId: '',
+        productId: '',
+        username: '',
+        password: '',
+        instructions: ''
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error sending product', 
+        description: error.message || 'Failed to send product',
         variant: 'destructive' 
       });
     }
@@ -284,7 +333,7 @@ export function SimpleAdminDashboard() {
             <CardTitle className="text-white">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Button 
                 onClick={() => setShowAddProduct(true)}
                 className="bg-blue-500 hover:bg-blue-600 h-16 flex-col space-y-1 text-sm"
@@ -307,6 +356,14 @@ export function SimpleAdminDashboard() {
               >
                 <i className="fas fa-wallet"></i>
                 <span>Edit Balance</span>
+              </Button>
+
+              <Button 
+                onClick={() => setShowSendProduct(true)}
+                className="bg-orange-500 hover:bg-orange-600 h-16 flex-col space-y-1 text-sm"
+              >
+                <i className="fas fa-gift"></i>
+                <span>Send Product</span>
               </Button>
             </div>
           </CardContent>
@@ -396,48 +453,6 @@ export function SimpleAdminDashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* System Status */}
-        <Card className="bg-dark-card/50 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">System Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <span className="text-white">Database</span>
-                <Badge className="bg-green-500 text-white">
-                  <i className="fas fa-check mr-1"></i>
-                  Online
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <span className="text-white">Payment Gateway</span>
-                <Badge className="bg-green-500 text-white">
-                  <i className="fas fa-check mr-1"></i>
-                  Active
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <span className="text-white">Telegram Bot</span>
-                <Badge className="bg-green-500 text-white">
-                  <i className="fas fa-check mr-1"></i>
-                  Running
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <span className="text-white">Server</span>
-                <Badge className="bg-green-500 text-white">
-                  <i className="fas fa-check mr-1"></i>
-                  Healthy
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Add Product Modal */}
@@ -491,25 +506,6 @@ export function SimpleAdminDashboard() {
                   placeholder="0"
                 />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="category" className="text-gray-400">Category</Label>
-              <Select
-                value={productForm.category}
-                onValueChange={(value) => setProductForm({ ...productForm, category: value })}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Electronics">Electronics</SelectItem>
-                  <SelectItem value="Fashion">Fashion</SelectItem>
-                  <SelectItem value="Home">Home</SelectItem>
-                  <SelectItem value="Sports">Sports</SelectItem>
-                  <SelectItem value="Books">Books</SelectItem>
-                  <SelectItem value="Gaming">Gaming</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label htmlFor="imageUrl" className="text-gray-400">Image URL</Label>
@@ -656,6 +652,107 @@ export function SimpleAdminDashboard() {
                 </div>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Product Modal */}
+      <Dialog open={showSendProduct} onOpenChange={setShowSendProduct}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Send Product to User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="sendUserId" className="text-gray-400">Select User</Label>
+              <Select
+                value={sendProductForm.userId}
+                onValueChange={(value) => setSendProductForm({ ...sendProductForm, userId: value })}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user: any) => (
+                    <SelectItem key={user._id || user.id} value={user._id || user.id}>
+                      {user.firstName} {user.lastName} (@{user.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="sendProductId" className="text-gray-400">Select Product</Label>
+              <Select
+                value={sendProductForm.productId}
+                onValueChange={(value) => setSendProductForm({ ...sendProductForm, productId: value })}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product: any) => (
+                    <SelectItem key={product._id || product.id} value={product._id || product.id}>
+                      {product.name} - ${product.price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sendUsername" className="text-gray-400">Username</Label>
+                <Input
+                  id="sendUsername"
+                  value={sendProductForm.username}
+                  onChange={(e) => setSendProductForm({ ...sendProductForm, username: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Enter username"
+                />
+              </div>
+              <div>
+                <Label htmlFor="sendPassword" className="text-gray-400">Password</Label>
+                <Input
+                  id="sendPassword"
+                  type="password"
+                  value={sendProductForm.password}
+                  onChange={(e) => setSendProductForm({ ...sendProductForm, password: e.target.value })}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Enter password"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="sendInstructions" className="text-gray-400">Instructions</Label>
+              <Textarea
+                id="sendInstructions"
+                value={sendProductForm.instructions}
+                onChange={(e) => setSendProductForm({ ...sendProductForm, instructions: e.target.value })}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter instructions for the user..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => sendProductMutation.mutate(sendProductForm)}
+                disabled={sendProductMutation.isPending}
+                className="flex-1 bg-orange-500 hover:bg-orange-600"
+              >
+                {sendProductMutation.isPending ? 'Sending...' : 'Send Product'}
+              </Button>
+              <Button
+                onClick={() => setShowSendProduct(false)}
+                variant="outline"
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

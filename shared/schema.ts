@@ -59,6 +59,21 @@ export const transactionSchema = z.object({
 
 export const insertTransactionSchema = transactionSchema.omit({ _id: true, createdAt: true, updatedAt: true });
 
+// Sent Product schema (for admin-sent products to users)
+export const sentProductSchema = z.object({
+  _id: z.string().optional(),
+  userId: z.string(),
+  productId: z.string(),
+  productName: z.string(),
+  username: z.string(),
+  password: z.string(),
+  instructions: z.string().optional(),
+  sentAt: z.date().optional(),
+  isActive: z.boolean().default(true),
+});
+
+export const insertSentProductSchema = sentProductSchema.omit({ _id: true, sentAt: true });
+
 // Types
 export type User = z.infer<typeof userSchema>;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -68,3 +83,5 @@ export type Cart = z.infer<typeof cartSchema>;
 export type InsertCart = z.infer<typeof insertCartSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type SentProduct = z.infer<typeof sentProductSchema>;
+export type InsertSentProduct = z.infer<typeof insertSentProductSchema>;
