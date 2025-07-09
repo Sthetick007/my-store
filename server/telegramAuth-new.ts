@@ -32,7 +32,7 @@ function parseUser(initData: string) {
     const userParam = urlParams.get('user');
     if (userParam) {
         return JSON.parse(decodeURIComponent(userParam));
-    }
+    }``
     // Fallback for dev mode
     return { id: 'dev_123456789', username: 'devuser', first_name: 'Dev' };
 }

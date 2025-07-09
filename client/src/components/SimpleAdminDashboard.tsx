@@ -584,29 +584,44 @@ export function SimpleAdminDashboard() {
                 </div>
               ) : (
                 pendingTransactions.map((transaction: any) => (
-                  <div key={transaction._id || transaction.id} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
-                    <div className="flex-1">
-                      <h3 className="text-white font-medium">{transaction.description || transaction.type}</h3>
-                      <p className="text-gray-400 text-sm">${transaction.amount}</p>
-                      <p className="text-gray-500 text-xs">User: {transaction.userId}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => approveTransactionMutation.mutate(transaction._id || transaction.id)}
-                        className="bg-green-500 hover:bg-green-600"
-                        disabled={approveTransactionMutation.isPending}
-                      >
-                        <i className="fas fa-check"></i>
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => declineTransactionMutation.mutate(transaction._id || transaction.id)}
-                        className="bg-red-500 hover:bg-red-600"
-                        disabled={declineTransactionMutation.isPending}
-                      >
-                        <i className="fas fa-times"></i>
-                      </Button>
+                  <div key={transaction._id || transaction.id} className="p-4 bg-gray-800/50 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-white font-medium">{transaction.description || transaction.type}</h3>
+                        <p className="text-accent-blue text-lg font-bold">${transaction.amount}</p>
+                        <p className="text-gray-500 text-xs">User: {transaction.userId}</p>
+                        {transaction.metadata?.paymentMethod && (
+                          <p className="text-gray-400 text-sm">
+                            Method: <span className="capitalize">{transaction.metadata.paymentMethod}</span>
+                          </p>
+                        )}
+                        {transaction.metadata?.orderId && (
+                          <p className="text-gray-400 text-sm">
+                            Order ID: <span className="font-mono text-xs">{transaction.metadata.orderId}</span>
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs">
+                          {new Date(transaction.createdAt || transaction.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2 ml-4">
+                        <Button
+                          size="sm"
+                          onClick={() => approveTransactionMutation.mutate(transaction._id || transaction.id)}
+                          className="bg-green-500 hover:bg-green-600"
+                          disabled={approveTransactionMutation.isPending}
+                        >
+                          <i className="fas fa-check"></i>
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => declineTransactionMutation.mutate(transaction._id || transaction.id)}
+                          className="bg-red-500 hover:bg-red-600"
+                          disabled={declineTransactionMutation.isPending}
+                        >
+                          <i className="fas fa-times"></i>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))

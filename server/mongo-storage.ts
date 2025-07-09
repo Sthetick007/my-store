@@ -187,8 +187,16 @@ export class MongoStorage implements IStorage {
 
   // Transaction operations
   async getTransactions(userId: string, type?: string): Promise<TransactionType[]> {
-    const query: any = { userId };
-    if (type) query.type = type;
+    const query: any = {};
+    
+    // Only filter by userId if it's provided (not empty)
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    if (type) {
+      query.type = type;
+    }
 
     const transactions = await Transaction.find(query).sort({ createdAt: -1 });
     return transactions.map(this.formatTransaction);

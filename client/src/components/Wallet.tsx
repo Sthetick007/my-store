@@ -1,4 +1,4 @@
-import { PaymentOptions } from './PaymentOptions';
+import { PaymentOptions } from './PaymentOptionsNew';
 
 export function Wallet() {
   return <PaymentOptions />;
