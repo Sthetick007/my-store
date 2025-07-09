@@ -246,6 +246,7 @@ export function SimpleAdminDashboard() {
       setShowEditBalance(false);
       setBalanceForm({ telegramId: '', newBalance: '', reason: '' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -269,6 +270,7 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Transaction approved successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -292,6 +294,7 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Transaction declined successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -341,6 +344,7 @@ export function SimpleAdminDashboard() {
         password: '',
         instructions: ''
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sent-product-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -411,6 +415,7 @@ export function SimpleAdminDashboard() {
         addAmount: '',
         fetchedBalance: prev.fetchedBalance ? prev.fetchedBalance + parseFloat(prev.addAmount || '0') : null
       }));
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -449,6 +454,7 @@ export function SimpleAdminDashboard() {
         removeAmount: '',
         fetchedBalance: prev.fetchedBalance ? Math.max(0, prev.fetchedBalance - parseFloat(prev.removeAmount || '0')) : null
       }));
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -456,6 +462,34 @@ export function SimpleAdminDashboard() {
         description: error.message || 'Failed to remove balance',
         variant: 'destructive' 
       });
+    }
+  });
+
+  // Fetch balance logs
+  const { data: balanceLogs = [] } = useQuery({
+    queryKey: ['/api/admin/balance-logs'],
+    queryFn: async () => {
+      const adminToken = localStorage.getItem('admin_token');
+      console.log('🔍 Fetching balance logs...');
+      const response = await apiRequest('GET', '/api/admin/balance-logs', undefined, {
+        Authorization: `Bearer ${adminToken}`
+      });
+      console.log('📊 Balance logs response:', response);
+      return response.logs || [];
+    }
+  });
+
+  // Fetch sent product logs
+  const { data: sentProductLogs = [] } = useQuery({
+    queryKey: ['/api/admin/sent-product-logs'],
+    queryFn: async () => {
+      const adminToken = localStorage.getItem('admin_token');
+      console.log('🔍 Fetching sent product logs...');
+      const response = await apiRequest('GET', '/api/admin/sent-product-logs', undefined, {
+        Authorization: `Bearer ${adminToken}`
+      });
+      console.log('📦 Sent product logs response:', response);
+      return response.logs || [];
     }
   });
 
@@ -745,6 +779,142 @@ export function SimpleAdminDashboard() {
                         <p className="text-gray-500 text-xs mt-1">
                           {transaction.status === 'completed' ? 'Approved' : 'Denied'}
                         </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Balance Change Logs */}
+        <Card className="bg-dark-card/50 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span>Balance Change Logs</span>
+              <Badge className="bg-purple-600 text-white">{balanceLogs.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {balanceLogs.length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-clipboard-list text-gray-500 text-3xl mb-2"></i>
+                  <p className="text-gray-400">No balance change logs</p>
+                </div>
+              ) : (
+                balanceLogs.map((log: any) => (
+                  <div key={log._id} className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-l-purple-600">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-white font-medium">Balance Change</h3>
+                          <Badge className={`text-xs ${
+                            log.changeType === 'admin_direct' 
+                              ? 'bg-purple-500 text-white'
+                              : log.changeType === 'transaction_approval'
+                              ? 'bg-green-500 text-white' 
+                              : log.changeType === 'transaction_denial'
+                              ? 'bg-red-500 text-white'
+                              : log.changeType === 'admin_add'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-orange-500 text-white'
+                          }`}>
+                            {log.changeType.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-1">{log.reason}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-gray-400">User: {log.userId}</span>
+                          <span className="text-gray-400">
+                            ${log.previousBalance} → ${log.newBalance}
+                          </span>
+                          <span className={`font-bold ${
+                            log.changeAmount > 0 ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {log.changeAmount > 0 ? '+' : ''}${log.changeAmount}
+                          </span>
+                        </div>
+                        {log.adminEmail && (
+                          <p className="text-gray-500 text-xs mt-1">
+                            Admin: {log.adminEmail}
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end ml-4">
+                        <div className={`w-3 h-3 rounded-full ${
+                          log.changeAmount > 0 ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {log.changeAmount > 0 ? 'Credit' : 'Debit'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sent Product Logs */}
+        <Card className="bg-dark-card/50 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span>Sent Product Logs</span>
+              <Badge className="bg-orange-600 text-white">{sentProductLogs.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {sentProductLogs.length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-gift text-gray-500 text-3xl mb-2"></i>
+                  <p className="text-gray-400">No sent product logs</p>
+                </div>
+              ) : (
+                sentProductLogs.map((log: any) => (
+                  <div key={log.id} className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-l-orange-600">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-white font-medium">{log.productName}</h3>
+                          <Badge className="bg-orange-500 text-white text-xs">
+                            Product Sent
+                          </Badge>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-1">
+                          To: {log.userName} (Telegram: {log.userTelegramId})
+                        </p>
+                        <div className="space-y-1 text-sm">
+                          <p className="text-gray-400">
+                            <strong>Username:</strong> <span className="font-mono text-blue-400">{log.username}</span>
+                          </p>
+                          <p className="text-gray-400">
+                            <strong>Password:</strong> <span className="font-mono text-green-400">{log.password}</span>
+                          </p>
+                          {log.instructions && (
+                            <p className="text-gray-400">
+                              <strong>Instructions:</strong> {log.instructions}
+                            </p>
+                          )}
+                        </div>
+                        {log.adminEmail && (
+                          <p className="text-gray-500 text-xs mt-1">
+                            Sent by: {log.adminEmail}
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs">
+                          {new Date(log.sentAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end ml-4">
+                        <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <p className="text-gray-500 text-xs mt-1">Delivered</p>
                       </div>
                     </div>
                   </div>
