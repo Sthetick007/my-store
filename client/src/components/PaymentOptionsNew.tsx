@@ -25,6 +25,13 @@ export function PaymentOptions() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Refresh user balance
+  const refreshBalance = () => {
+    console.log('🔄 Manually refreshing user balance...');
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    toast({ title: 'Balance refreshed!', description: 'Your balance has been updated.' });
+  };
+
   // Create transaction mutation
   const createTransactionMutation = useMutation({
     mutationFn: async ({ amount, method, orderId }: { amount: string; method: string; orderId: string }) => {
@@ -408,6 +415,13 @@ export function PaymentOptions() {
 
             {/* Action Buttons */}
             <div className="space-y-3">
+              <Button
+                onClick={refreshBalance}
+                className="w-full bg-green-500 hover:bg-green-600"
+              >
+                <i className="fas fa-sync-alt mr-2"></i>
+                Refresh Balance
+              </Button>
               <Button
                 onClick={handleReset}
                 className="w-full bg-accent-blue hover:bg-accent-blue-dark"

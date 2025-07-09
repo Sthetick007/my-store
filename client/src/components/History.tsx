@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ interface HistoryProps {
 
 export function History({ limit }: HistoryProps = {}) {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const queryClient = useQueryClient();
 
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions', selectedFilter === 'all' ? undefined : selectedFilter],
@@ -36,7 +37,16 @@ export function History({ limit }: HistoryProps = {}) {
       console.log('📋 User transactions received:', data);
       return data;
     },
+    refetchInterval: 5000, // Refetch every 5 seconds to check for status updates
   });
+
+  // Whenever transactions are fetched, also refresh user auth data to update balance
+  useEffect(() => {
+    if (transactions) {
+      console.log('🔄 Refreshing user auth data to update balance...');
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    }
+  }, [transactions, queryClient]);
 
   const filters = [
     { id: 'all', label: 'All' },
@@ -167,14 +177,14 @@ export function History({ limit }: HistoryProps = {}) {
                       </div>
                       <div>
                         <p className="text-white font-medium text-sm">{transaction.description}</p>
-                        <p className="text-gray-400 text-xs">{formatDate(transaction.createdAt!)}</p>
+                        <p className="text-gray-400 text-xs">{formatDate(transaction.createdAt!.toString())}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`font-semibold ${
-                        parseFloat(transaction.amount) > 0 ? 'text-green-500' : 'text-red-500'
+                        transaction.amount > 0 ? 'text-green-500' : 'text-red-500'
                       }`}>
-                        {parseFloat(transaction.amount) > 0 ? '+' : ''}${Math.abs(parseFloat(transaction.amount)).toFixed(2)}
+                        {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
                       </p>
                       <Badge className={cn('text-xs', getStatusColor(transaction.status))}>
                         {transaction.status}

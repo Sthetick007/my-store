@@ -189,15 +189,27 @@ export function setupTelegramAuth(app: express.Express) {
         });
     });
 
-    app.post('/api/auth/me', (req, res) => {
+    app.post('/api/auth/me', async (req, res) => {
         const auth = req.headers.authorization;
         if (!auth) return res.json({ success: false });
         try {
             const token = auth.replace('Bearer ', '');
             const payload = jwt.verify(token, JWT_SECRET) as any;
-            const user = userStorage.getSession(payload.id);
-            if (!user) throw new Error('No session');
-            res.json({ success: true, user });
+            const sessionUser = userStorage.getSession(payload.id);
+            if (!sessionUser) throw new Error('No session');
+            
+            // Get fresh user data from main storage to ensure balance is up-to-date
+            const freshUser = await storage.getUser(payload.id);
+            if (freshUser) {
+                // Merge session data with fresh balance data
+                const userData = {
+                    ...sessionUser,
+                    balance: freshUser.balance || 0
+                };
+                res.json({ success: true, user: userData });
+            } else {
+                res.json({ success: true, user: sessionUser });
+            }
         } catch {
             res.json({ success: false });
         }

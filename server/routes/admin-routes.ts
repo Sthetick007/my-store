@@ -289,18 +289,28 @@ router.post('/messages', isAdminAuthenticated, async (req: any, res) => {
 // Send product to user
 router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
   try {
+    console.log('📦 Admin sending product with data:', req.body);
     const { userId, productId, username, password, instructions } = req.body;
     
     // Validate required fields
     if (!userId || !productId || !username || !password) {
-      return res.status(400).json({ message: "Missing required fields" });
+      console.log('❌ Missing required fields:', { userId, productId, username, password });
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        required: ["userId", "productId", "username", "password"],
+        received: { userId, productId, username, password }
+      });
     }
     
     // Get product details
+    console.log('🔍 Looking up product ID:', productId);
     const product = await Product.findById(productId);
     if (!product) {
+      console.log('❌ Product not found:', productId);
       return res.status(404).json({ message: "Product not found" });
     }
+    
+    console.log('✅ Product found:', product.name);
     
     // Create sent product record
     const sentProduct = new SentProduct({
@@ -315,6 +325,7 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     });
     
     await sentProduct.save();
+    console.log('✅ Product sent successfully:', sentProduct._id);
     
     res.json({ 
       message: "Product sent successfully",
@@ -326,7 +337,7 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
       }
     });
   } catch (error) {
-    console.error("Error sending product:", error);
+    console.error("❌ Error sending product:", error);
     res.status(500).json({ message: "Failed to send product" });
   }
 });

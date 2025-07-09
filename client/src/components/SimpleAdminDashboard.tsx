@@ -260,6 +260,7 @@ export function SimpleAdminDashboard() {
   const approveTransactionMutation = useMutation({
     mutationFn: async (transactionId: string) => {
       const token = localStorage.getItem('admin_token');
+      console.log('✅ Approving transaction:', transactionId);
       return await apiRequest('POST', `/api/admin/transactions/${transactionId}/approve`, {}, {
         'Authorization': `Bearer ${token}`
       });
@@ -268,7 +269,6 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Transaction approved successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/history'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -283,6 +283,7 @@ export function SimpleAdminDashboard() {
   const declineTransactionMutation = useMutation({
     mutationFn: async (transactionId: string) => {
       const token = localStorage.getItem('admin_token');
+      console.log('❌ Declining transaction:', transactionId);
       return await apiRequest('POST', `/api/admin/transactions/${transactionId}/deny`, {}, {
         'Authorization': `Bearer ${token}`
       });
@@ -305,8 +306,23 @@ export function SimpleAdminDashboard() {
   const sendProductMutation = useMutation({
     mutationFn: async (data: typeof sendProductForm) => {
       const token = localStorage.getItem('admin_token');
+      
+      // First, get the user by telegram ID to get the userId
+      console.log('🔍 Looking up user by telegram ID:', data.telegramId);
+      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${data.telegramId}`, undefined, {
+        'Authorization': `Bearer ${token}`
+      });
+      
+      if (!userResponse.success || !userResponse.user) {
+        throw new Error('User not found');
+      }
+      
+      const userId = userResponse.user.id;
+      console.log('✅ Found user ID:', userId);
+      
+      // Now send the product with the correct userId
       return await apiRequest('POST', '/api/admin/send-product', {
-        telegramId: data.telegramId,
+        userId: userId,
         productId: data.productId,
         username: data.username,
         password: data.password,
@@ -369,13 +385,21 @@ export function SimpleAdminDashboard() {
 
   // Add Balance Mutation
   const addBalanceMutation = useMutation({
-    mutationFn: async ({ telegramId, amount }: { telegramId: string; amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: number }) => {
       const token = localStorage.getItem('admin_token');
-      const currentBalance = userBalanceForm.fetchedBalance || 0;
+      console.log('💰 Adding balance:', { telegramId, amount });
+      
+      // First get current balance
+      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
+        'Authorization': `Bearer ${token}`
+      });
+      
+      const currentBalance = userResponse.user.balance || 0;
       const newBalance = currentBalance + amount;
+      
       return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
         balance: newBalance,
-        reason: `Add balance: +$${amount}`
+        reason: `Added $${amount} to balance`
       }, {
         'Authorization': `Bearer ${token}`
       });
@@ -384,10 +408,9 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Balance added successfully!' });
       setUserBalanceForm(prev => ({ 
         ...prev, 
-        fetchedBalance: prev.fetchedBalance! + parseFloat(prev.addAmount),
-        addAmount: ''
+        addAmount: '',
+        fetchedBalance: prev.fetchedBalance ? prev.fetchedBalance + parseFloat(prev.addAmount || '0') : null
       }));
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -400,13 +423,21 @@ export function SimpleAdminDashboard() {
 
   // Remove Balance Mutation
   const removeBalanceMutation = useMutation({
-    mutationFn: async ({ telegramId, amount }: { telegramId: string; amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: number }) => {
       const token = localStorage.getItem('admin_token');
-      const currentBalance = userBalanceForm.fetchedBalance || 0;
-      const newBalance = Math.max(0, currentBalance - amount);
+      console.log('💸 Removing balance:', { telegramId, amount });
+      
+      // First get current balance
+      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
+        'Authorization': `Bearer ${token}`
+      });
+      
+      const currentBalance = userResponse.user.balance || 0;
+      const newBalance = Math.max(0, currentBalance - amount); // Don't go below 0
+      
       return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
         balance: newBalance,
-        reason: `Remove balance: -$${amount}`
+        reason: `Removed $${amount} from balance`
       }, {
         'Authorization': `Bearer ${token}`
       });
@@ -415,10 +446,9 @@ export function SimpleAdminDashboard() {
       toast({ title: 'Balance removed successfully!' });
       setUserBalanceForm(prev => ({ 
         ...prev, 
-        fetchedBalance: Math.max(0, prev.fetchedBalance! - parseFloat(prev.removeAmount)),
-        removeAmount: ''
+        removeAmount: '',
+        fetchedBalance: prev.fetchedBalance ? Math.max(0, prev.fetchedBalance - parseFloat(prev.removeAmount || '0')) : null
       }));
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -1041,7 +1071,7 @@ export function SimpleAdminDashboard() {
                       onClick={() => {
                         setBalanceForm({
                           ...balanceForm,
-                          userId: user._id || user.id,
+                          telegramId: user.telegramId || '',
                         });
                         setShowUsers(false);
                         setShowEditBalance(true);
