@@ -29,7 +29,10 @@ export function PaymentOptions() {
   const createTransactionMutation = useMutation({
     mutationFn: async ({ amount, method, orderId }: { amount: string; method: string; orderId: string }) => {
       const token = localStorage.getItem('telegram_token');
-      return await apiRequest('POST', '/api/transactions', {
+      console.log('🔄 Creating transaction:', { amount, method, orderId });
+      console.log('🔐 User token:', token ? `${token.substring(0, 20)}...` : 'missing');
+      
+      const response = await apiRequest('POST', '/api/transactions', {
         type: 'deposit',
         amount: parseFloat(amount),
         description: `Add funds via ${method}`,
@@ -42,13 +45,18 @@ export function PaymentOptions() {
       }, {
         'Authorization': `Bearer ${token}`
       });
+      
+      console.log('✅ Transaction created:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('🎉 Transaction creation success:', data);
       hapticFeedback('success');
       setCurrentStep('verification');
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
     },
     onError: (error) => {
+      console.error('❌ Transaction creation error:', error);
       hapticFeedback('error');
       toast({
         title: 'Payment Failed',
@@ -154,16 +162,6 @@ export function PaymentOptions() {
             >
               Continue to Payment Method
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Current Balance */}
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Current Balance</span>
-              <span className="text-accent-blue font-bold text-xl">${user?.balance || 0}</span>
-            </div>
           </CardContent>
         </Card>
 

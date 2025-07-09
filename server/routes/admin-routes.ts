@@ -121,7 +121,7 @@ router.get('/stats', isAdminAuthenticated, async (req: any, res) => {
   try {
     const users = await storage.getAllUsers();
     const totalRevenue = await storage.getTotalRevenue();
-    const pendingTransactions = await storage.getTransactions('', 'pending');
+    const pendingTransactions = await storage.getPendingTransactions();
     
     res.json({
       totalUsers: users.length,
@@ -199,10 +199,20 @@ router.delete('/products/:id', isAdminAuthenticated, async (req: any, res) => {
 router.get('/transactions', isAdminAuthenticated, async (req: any, res) => {
   try {
     const status = req.query.status as string;
-    const transactions = await storage.getTransactions('', status || '');
+    console.log('📋 Admin fetching transactions with status:', status);
+    
+    let transactions;
+    if (status === 'pending') {
+      transactions = await storage.getPendingTransactions();
+    } else {
+      transactions = await storage.getTransactions('', status || '');
+    }
+    
+    console.log('✅ Admin found transactions:', transactions.length);
+    console.log('📄 Admin transaction details:', transactions);
     res.json({ success: true, transactions });
   } catch (error) {
-    console.error("Error fetching admin transactions:", error);
+    console.error("❌ Error fetching admin transactions:", error);
     res.status(500).json({ success: false, message: "Failed to fetch transactions" });
   }
 });

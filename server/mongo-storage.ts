@@ -37,14 +37,16 @@ export interface IStorage {
   clearCart(userId: string): Promise<boolean>;
   
   // Transaction operations
-  getTransactions(userId: string, type?: string): Promise<TransactionType[]>;
+  getTransactions(userId: string, statusOrType?: string): Promise<TransactionType[]>;
   createTransaction(transaction: InsertTransaction): Promise<TransactionType>;
   updateTransactionStatus(id: string, status: string): Promise<TransactionType | undefined>;
   
   // Admin operations
   getAllUsers(): Promise<UserType[]>;
+  getPendingTransactions(): Promise<TransactionType[]>;
   getTotalRevenue(): Promise<number>;
   getRecentActivity(): Promise<TransactionType[]>;
+  getPendingTransactions(): Promise<TransactionType[]>;
 }
 
 export class MongoStorage implements IStorage {
@@ -186,7 +188,7 @@ export class MongoStorage implements IStorage {
   }
 
   // Transaction operations
-  async getTransactions(userId: string, type?: string): Promise<TransactionType[]> {
+  async getTransactions(userId: string, statusOrType?: string): Promise<TransactionType[]> {
     const query: any = {};
     
     // Only filter by userId if it's provided (not empty)
@@ -194,17 +196,38 @@ export class MongoStorage implements IStorage {
       query.userId = userId;
     }
     
-    if (type) {
-      query.type = type;
+    // Check if the parameter is a status or type
+    if (statusOrType) {
+      const validStatuses = ['pending', 'completed', 'failed'];
+      const validTypes = ['deposit', 'withdrawal', 'purchase', 'refund'];
+      
+      if (validStatuses.includes(statusOrType)) {
+        query.status = statusOrType;
+      } else if (validTypes.includes(statusOrType)) {
+        query.type = statusOrType;
+      }
     }
 
+    console.log('🔍 Storage: Fetching transactions with query:', query);
     const transactions = await Transaction.find(query).sort({ createdAt: -1 });
+    console.log('📋 Storage: Found transactions:', transactions.length);
+    console.log('📄 Storage: Transaction details:', transactions.map(t => ({
+      id: t._id,
+      userId: t.userId,
+      type: t.type,
+      amount: t.amount,
+      status: t.status,
+      metadata: t.metadata
+    })));
+    
     return transactions.map(this.formatTransaction);
   }
 
   async createTransaction(transactionData: InsertTransaction): Promise<TransactionType> {
+    console.log('💾 Storage: Creating transaction:', transactionData);
     const transaction = new Transaction(transactionData);
     await transaction.save();
+    console.log('✅ Storage: Transaction saved:', transaction);
     return this.formatTransaction(transaction);
   }
 
@@ -217,6 +240,21 @@ export class MongoStorage implements IStorage {
   async getAllUsers(): Promise<UserType[]> {
     const users = await User.find().sort({ createdAt: -1 });
     return users.map(this.formatUser);
+  }
+
+  async getPendingTransactions(): Promise<TransactionType[]> {
+    console.log('🔍 Storage: Fetching pending transactions specifically');
+    const transactions = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 });
+    console.log('📋 Storage: Found pending transactions:', transactions.length);
+    console.log('📄 Storage: Pending transaction details:', transactions.map(t => ({
+      id: t._id,
+      userId: t.userId,
+      type: t.type,
+      amount: t.amount,
+      status: t.status,
+      metadata: t.metadata
+    })));
+    return transactions.map(this.formatTransaction);
   }
 
   async getTotalRevenue(): Promise<number> {
@@ -282,6 +320,7 @@ export class MongoStorage implements IStorage {
 
   private formatTransaction(transaction: any): TransactionType {
     return {
+      id: transaction._id.toString(),
       _id: transaction._id.toString(),
       userId: transaction.userId,
       type: transaction.type,

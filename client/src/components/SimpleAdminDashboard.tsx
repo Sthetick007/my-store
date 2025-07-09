@@ -80,9 +80,12 @@ export function SimpleAdminDashboard() {
     queryKey: ['/api/admin/transactions/pending'],
     queryFn: async () => {
       const adminToken = localStorage.getItem('admin_token');
+      console.log('🔍 Fetching admin transactions...');
+      console.log('🔐 Admin token:', adminToken ? `${adminToken.substring(0, 20)}...` : 'missing');
       const response = await apiRequest('GET', '/api/admin/transactions?status=pending', undefined, {
         Authorization: `Bearer ${adminToken}`
       });
+      console.log('📋 Admin transactions response:', response);
       return response.transactions || [];
     }
   });
@@ -248,6 +251,7 @@ export function SimpleAdminDashboard() {
     onSuccess: () => {
       toast({ title: 'Transaction approved successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -262,7 +266,7 @@ export function SimpleAdminDashboard() {
   const declineTransactionMutation = useMutation({
     mutationFn: async (transactionId: string) => {
       const token = localStorage.getItem('admin_token');
-      return await apiRequest('POST', `/api/admin/transactions/${transactionId}/decline`, {}, {
+      return await apiRequest('POST', `/api/admin/transactions/${transactionId}/deny`, {}, {
         'Authorization': `Bearer ${token}`
       });
     },

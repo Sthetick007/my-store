@@ -17,9 +17,24 @@ export function History({ limit }: HistoryProps = {}) {
     queryKey: ['/api/transactions', selectedFilter === 'all' ? undefined : selectedFilter],
     queryFn: async () => {
       const params = selectedFilter === 'all' ? '' : `?type=${selectedFilter}`;
-      const response = await fetch(`/api/transactions${params}`);
-      if (!response.ok) throw new Error('Failed to fetch transactions');
-      return response.json();
+      const token = localStorage.getItem('telegram_token');
+      console.log('🔍 Fetching user transactions with filter:', selectedFilter);
+      console.log('🔐 User token:', token ? `${token.substring(0, 20)}...` : 'missing');
+      
+      const response = await fetch(`/api/transactions${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Failed to fetch transactions:', response.status, response.statusText);
+        throw new Error('Failed to fetch transactions');
+      }
+      
+      const data = await response.json();
+      console.log('📋 User transactions received:', data);
+      return data;
     },
   });
 

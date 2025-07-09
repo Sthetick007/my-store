@@ -46,6 +46,7 @@ export const insertCartSchema = cartSchema.omit({ _id: true, createdAt: true, up
 
 // Transaction schema
 export const transactionSchema = z.object({
+  id: z.string().optional(),
   _id: z.string().optional(),
   userId: z.string(),
   type: z.enum(['deposit', 'withdrawal', 'purchase', 'refund']),
@@ -57,7 +58,7 @@ export const transactionSchema = z.object({
   updatedAt: z.date().optional(),
 });
 
-export const insertTransactionSchema = transactionSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+export const insertTransactionSchema = transactionSchema.omit({ id: true, _id: true, createdAt: true, updatedAt: true });
 
 // Sent Product schema (for admin-sent products to users)
 export const sentProductSchema = z.object({
