@@ -90,6 +90,22 @@ export function SimpleAdminDashboard() {
     }
   });
 
+  // Fetch transaction history (completed and failed)
+  const { data: transactionHistory = [] } = useQuery({
+    queryKey: ['/api/admin/transactions/history'],
+    queryFn: async () => {
+      const adminToken = localStorage.getItem('admin_token');
+      console.log('🔍 Fetching admin transaction history...');
+      const response = await apiRequest('GET', '/api/admin/transactions', undefined, {
+        Authorization: `Bearer ${adminToken}`
+      });
+      console.log('📋 Admin transaction history response:', response);
+      // Filter out pending transactions to show only completed/failed
+      const history = (response.transactions || []).filter((t: any) => t.status !== 'pending');
+      return history.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+  });
+
   // Fetch users
   const { data: users = [] } = useQuery({
     queryKey: ['/api/admin/users'],
@@ -251,6 +267,7 @@ export function SimpleAdminDashboard() {
     onSuccess: () => {
       toast({ title: 'Transaction approved successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/history'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
@@ -273,6 +290,7 @@ export function SimpleAdminDashboard() {
     onSuccess: () => {
       toast({ title: 'Transaction declined successfully!' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions/history'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -625,6 +643,78 @@ export function SimpleAdminDashboard() {
                         >
                           <i className="fas fa-times"></i>
                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Transaction History */}
+        <Card className="bg-dark-card/50 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span>Transaction History</span>
+              <Badge className="bg-gray-600 text-white">{transactionHistory.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {transactionHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-history text-gray-500 text-3xl mb-2"></i>
+                  <p className="text-gray-400">No transaction history</p>
+                </div>
+              ) : (
+                transactionHistory.map((transaction: any) => (
+                  <div key={transaction._id || transaction.id} className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-l-gray-600">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-white font-medium">{transaction.description || transaction.type}</h3>
+                          <Badge className={`text-xs ${
+                            transaction.status === 'completed' 
+                              ? 'bg-green-500 text-white' 
+                              : transaction.status === 'failed'
+                              ? 'bg-red-500 text-white'
+                              : 'bg-gray-500 text-white'
+                          }`}>
+                            {transaction.status}
+                          </Badge>
+                        </div>
+                        <p className={`text-lg font-bold ${
+                          transaction.status === 'completed' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          ${transaction.amount}
+                        </p>
+                        <p className="text-gray-500 text-xs">User: {transaction.userId}</p>
+                        {transaction.metadata?.paymentMethod && (
+                          <p className="text-gray-400 text-sm">
+                            Method: <span className="capitalize">{transaction.metadata.paymentMethod}</span>
+                          </p>
+                        )}
+                        {transaction.metadata?.orderId && (
+                          <p className="text-gray-400 text-sm">
+                            Order ID: <span className="font-mono text-xs">{transaction.metadata.orderId}</span>
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs">
+                          {new Date(transaction.createdAt || transaction.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end ml-4">
+                        <div className={`w-3 h-3 rounded-full ${
+                          transaction.status === 'completed' 
+                            ? 'bg-green-500' 
+                            : transaction.status === 'failed'
+                            ? 'bg-red-500'
+                            : 'bg-gray-500'
+                        }`}></div>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {transaction.status === 'completed' ? 'Approved' : 'Denied'}
+                        </p>
                       </div>
                     </div>
                   </div>

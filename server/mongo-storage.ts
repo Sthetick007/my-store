@@ -234,7 +234,9 @@ export class MongoStorage implements IStorage {
   }
 
   async updateTransactionStatus(id: string, status: string): Promise<TransactionType | undefined> {
-    const transaction = await Transaction.findByIdAndUpdate(id, { status }, { new: true });
+    console.log('🔄 Storage: Updating transaction status:', { id, status });
+    const transaction = await Transaction.findByIdAndUpdate(id, { status, updatedAt: new Date() }, { new: true });
+    console.log('✅ Storage: Transaction status updated:', transaction);
     return transaction ? this.formatTransaction(transaction) : undefined;
   }
 

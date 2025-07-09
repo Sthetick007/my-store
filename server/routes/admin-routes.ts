@@ -220,11 +220,14 @@ router.get('/transactions', isAdminAuthenticated, async (req: any, res) => {
 router.post('/transactions/:id/approve', isAdminAuthenticated, async (req: any, res) => {
   try {
     const id = req.params.id;
+    console.log('💚 Admin approving transaction:', id);
     const transaction = await storage.updateTransactionStatus(id, 'completed');
     
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
+
+    console.log('✅ Transaction approved:', transaction);
     
     // Add balance to user account after approval
     if (transaction.type === 'deposit') {
@@ -233,12 +236,13 @@ router.post('/transactions/:id/approve', isAdminAuthenticated, async (req: any, 
         const currentBalance = targetUser.balance || 0;
         const newBalance = currentBalance + transaction.amount;
         await storage.updateUserBalance(transaction.userId, newBalance);
+        console.log(`💰 Updated user ${transaction.userId} balance from ${currentBalance} to ${newBalance}`);
       }
     }
     
     res.json(transaction);
   } catch (error) {
-    console.error("Error approving transaction:", error);
+    console.error("❌ Error approving transaction:", error);
     res.status(500).json({ message: "Failed to approve transaction" });
   }
 });
@@ -246,15 +250,18 @@ router.post('/transactions/:id/approve', isAdminAuthenticated, async (req: any, 
 router.post('/transactions/:id/deny', isAdminAuthenticated, async (req: any, res) => {
   try {
     const id = req.params.id;
+    console.log('❌ Admin denying transaction:', id);
     const transaction = await storage.updateTransactionStatus(id, 'failed');
     
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
+
+    console.log('🚫 Transaction denied:', transaction);
     
     res.json(transaction);
   } catch (error) {
-    console.error("Error denying transaction:", error);
+    console.error("❌ Error denying transaction:", error);
     res.status(500).json({ message: "Failed to deny transaction" });
   }
 });
