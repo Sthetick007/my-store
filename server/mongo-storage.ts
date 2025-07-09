@@ -203,8 +203,10 @@ export class MongoStorage implements IStorage {
       
       if (validStatuses.includes(statusOrType)) {
         query.status = statusOrType;
+        console.log('🔍 Storage: Filtering by status:', statusOrType);
       } else if (validTypes.includes(statusOrType)) {
         query.type = statusOrType;
+        console.log('🔍 Storage: Filtering by type:', statusOrType);
       }
     }
 
