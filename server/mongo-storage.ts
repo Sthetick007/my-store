@@ -3,6 +3,8 @@ import User from './models/User';
 import Product from './models/Product';
 import Cart from './models/Cart';
 import Transaction from './models/Transaction';
+import BalanceLog from './models/BalanceLog';
+import SentProductLog from './models/SentProductLog';
 import type {
   User as UserType,
   UpsertUser,
@@ -20,6 +22,15 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<UserType>;
   getUserByTelegramId(telegramId: string): Promise<UserType | undefined>;
   updateUserBalance(userId: string, balance: number): Promise<UserType | undefined>;
+  updateUserBalanceWithLogging(
+    userId: string, 
+    newBalance: number, 
+    reason: string,
+    changeType: 'admin_direct' | 'transaction_approval' | 'transaction_denial' | 'admin_add' | 'admin_remove',
+    adminId?: string,
+    adminEmail?: string,
+    metadata?: { transactionId?: string; ipAddress?: string; userAgent?: string }
+  ): Promise<UserType | undefined>;
   
   // Product operations
   getProducts(search?: string, category?: string): Promise<ProductType[]>;
@@ -41,12 +52,45 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<TransactionType>;
   updateTransactionStatus(id: string, status: string): Promise<TransactionType | undefined>;
   
+  // Balance log operations
+  logBalanceChange(log: {
+    userId: string;
+    adminId?: string;
+    adminEmail?: string;
+    previousBalance: number;
+    newBalance: number;
+    reason: string;
+    changeType: 'admin_direct' | 'transaction_approval' | 'transaction_denial' | 'admin_add' | 'admin_remove';
+    metadata?: {
+      transactionId?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    };
+  }): Promise<void>;
+  getBalanceLogs(userId?: string, limit?: number): Promise<any[]>;
+  
+  // Sent product log operations
+  logSentProduct(log: {
+    userId: string;
+    userTelegramId: string;
+    userName: string;
+    productId: string;
+    productName: string;
+    username: string;
+    password: string;
+    instructions: string;
+    adminId?: string;
+    adminEmail?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<void>;
+  getSentProductLogs(userId?: string, limit?: number): Promise<any[]>;
+  
   // Admin operations
   getAllUsers(): Promise<UserType[]>;
   getPendingTransactions(): Promise<TransactionType[]>;
   getTotalRevenue(): Promise<number>;
   getRecentActivity(): Promise<TransactionType[]>;
-  getPendingTransactions(): Promise<TransactionType[]>;
 }
 
 export class MongoStorage implements IStorage {
@@ -80,6 +124,44 @@ export class MongoStorage implements IStorage {
       { new: true }
     );
     return user ? this.formatUser(user) : undefined;
+  }
+
+  // Admin balance update with logging
+  async updateUserBalanceWithLogging(
+    userId: string, 
+    newBalance: number, 
+    reason: string,
+    changeType: 'admin_direct' | 'transaction_approval' | 'transaction_denial' | 'admin_add' | 'admin_remove',
+    adminId?: string,
+    adminEmail?: string,
+    metadata?: { transactionId?: string; ipAddress?: string; userAgent?: string }
+  ): Promise<UserType | undefined> {
+    // Get current balance first
+    const currentUser = await this.getUser(userId);
+    if (!currentUser) {
+      throw new Error('User not found');
+    }
+
+    const previousBalance = currentUser.balance || 0;
+    
+    // Update the balance
+    const updatedUser = await this.updateUserBalance(userId, newBalance);
+    
+    if (updatedUser) {
+      // Log the balance change
+      await this.logBalanceChange({
+        userId,
+        adminId,
+        adminEmail,
+        previousBalance,
+        newBalance,
+        reason,
+        changeType,
+        metadata
+      });
+    }
+    
+    return updatedUser;
   }
 
   // Product operations
@@ -240,43 +322,154 @@ export class MongoStorage implements IStorage {
     return transaction ? this.formatTransaction(transaction) : undefined;
   }
 
+  // Balance log operations
+  async logBalanceChange(log: {
+    userId: string;
+    adminId?: string;
+    adminEmail?: string;
+    previousBalance: number;
+    newBalance: number;
+    reason: string;
+    changeType: 'admin_direct' | 'transaction_approval' | 'transaction_denial' | 'admin_add' | 'admin_remove';
+    metadata?: {
+      transactionId?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    };
+  }): Promise<void> {
+    const changeAmount = log.newBalance - log.previousBalance;
+    
+    const balanceLog = new BalanceLog({
+      userId: log.userId,
+      adminId: log.adminId,
+      adminEmail: log.adminEmail,
+      previousBalance: log.previousBalance,
+      newBalance: log.newBalance,
+      changeAmount,
+      reason: log.reason,
+      changeType: log.changeType,
+      metadata: log.metadata,
+    });
+    
+    await balanceLog.save();
+    
+    console.log(`📊 Balance change logged: User ${log.userId}, ${changeAmount >= 0 ? '+' : ''}$${changeAmount} (${log.changeType})`);
+  }
+
+  async getBalanceLogs(userId?: string, limit: number = 50): Promise<any[]> {
+    const query = userId ? { userId } : {};
+    
+    const logs = await BalanceLog.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('userId', 'firstName lastName username telegramId')
+      .lean();
+    
+    return logs.map(log => ({
+      _id: log._id?.toString(),
+      userId: log.userId,
+      adminId: log.adminId,
+      adminEmail: log.adminEmail,
+      previousBalance: log.previousBalance,
+      newBalance: log.newBalance,
+      changeAmount: log.changeAmount,
+      reason: log.reason,
+      changeType: log.changeType,
+      createdAt: log.createdAt,
+      metadata: log.metadata,
+    }));
+  }
+
+  // Sent product logging
+  async logSentProduct(data: {
+    userId: string;
+    userTelegramId: string;
+    userName: string;
+    productId: string;
+    productName: string;
+    username: string;
+    password: string;
+    instructions: string;
+    adminId?: string;
+    adminEmail?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    const sentProductLog = new SentProductLog({
+      userId: data.userId,
+      userTelegramId: data.userTelegramId,
+      userName: data.userName,
+      productId: data.productId,
+      productName: data.productName,
+      username: data.username,
+      password: data.password,
+      instructions: data.instructions,
+      adminId: data.adminId || 'unknown',
+      adminEmail: data.adminEmail || 'unknown',
+      ipAddress: data.ipAddress || '',
+      userAgent: data.userAgent || '',
+      sentAt: new Date()
+    });
+    
+    await sentProductLog.save();
+    console.log(`📦 Product sent logged: User ${data.userId} received ${data.productName}`);
+  }
+
+  async getSentProductLogs(userId?: string, limit: number = 50): Promise<any[]> {
+    const query: any = {};
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    const logs = await SentProductLog.find(query)
+      .sort({ sentAt: -1 })
+      .limit(limit)
+      .lean();
+    
+    return logs.map(log => ({
+      id: log._id.toString(),
+      userId: log.userId,
+      userTelegramId: log.userTelegramId,
+      userName: log.userName,
+      productId: log.productId,
+      productName: log.productName,
+      username: log.username,
+      password: log.password,
+      instructions: log.instructions,
+      adminId: log.adminId,
+      adminEmail: log.adminEmail,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+      sentAt: log.sentAt
+    }));
+  }
+
   // Admin operations
   async getAllUsers(): Promise<UserType[]> {
-    const users = await User.find().sort({ createdAt: -1 });
+    const users = await User.find({}).sort({ createdAt: -1 });
     return users.map(this.formatUser);
   }
 
   async getPendingTransactions(): Promise<TransactionType[]> {
-    console.log('🔍 Storage: Fetching pending transactions specifically');
     const transactions = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 });
-    console.log('📋 Storage: Found pending transactions:', transactions.length);
-    console.log('📄 Storage: Pending transaction details:', transactions.map(t => ({
-      id: t._id,
-      userId: t.userId,
-      type: t.type,
-      amount: t.amount,
-      status: t.status,
-      metadata: t.metadata
-    })));
     return transactions.map(this.formatTransaction);
   }
 
   async getTotalRevenue(): Promise<number> {
     const result = await Transaction.aggregate([
-      { $match: { type: 'purchase', status: 'completed' } },
+      { $match: { status: 'completed', type: 'deposit' } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    return result[0]?.total || 0;
+    return result.length > 0 ? result[0].total : 0;
   }
 
   async getRecentActivity(): Promise<TransactionType[]> {
-    const transactions = await Transaction.find()
+    const transactions = await Transaction.find({})
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(20);
     return transactions.map(this.formatTransaction);
   }
 
-  // Format helpers to convert MongoDB documents to our types
   private formatUser(user: any): UserType {
     return {
       id: user.id,
