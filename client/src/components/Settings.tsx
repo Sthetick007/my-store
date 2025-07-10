@@ -176,23 +176,6 @@ export function Settings() {
           Support Email
         </Button>
 
-        {/* Instructions Card */}
-        <Card className="bg-gradient-to-r from-blue-500/10 to-blue-600/5 border-blue-500/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-sm flex items-center">
-              <i className="fas fa-info-circle mr-2 text-blue-400"></i>
-              Instructions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-gray-300 text-sm leading-relaxed">
-              Please wait for 15 min to 4 hr after purchasing a product or balance add in wallet. 
-              We will review and verify the payment and product will be delivered to you in 
-              My Products → Purchased Items section.
-            </p>
-          </CardContent>
-        </Card>
-
         <Separator className="bg-gray-700 my-4" />
 
         <Button
@@ -204,6 +187,32 @@ export function Settings() {
           Logout
         </Button>
       </div>
+
+      {/* Instructions Modal */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center">
+              <i className="fas fa-info-circle mr-2 text-blue-400"></i>
+              Instructions to Purchase
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Please wait for <span className="text-blue-400 font-semibold">15 minutes to 4 hours</span> after purchasing a product or adding balance to your wallet.
+              </p>
+              <p className="text-gray-300 text-sm leading-relaxed mt-2">
+                We will review and verify the payment, and the product will be delivered to you in the <span className="text-blue-400 font-semibold">My Products → Purchased Items</span> section.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 text-gray-400 text-xs">
+              <i className="fas fa-clock"></i>
+              <span>Processing time may vary based on payment method</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

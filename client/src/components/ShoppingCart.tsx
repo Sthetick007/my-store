@@ -17,6 +17,7 @@ interface ShoppingCartProps {
 
 export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { hapticFeedback, showMainButton, hideMainButton } = useTelegram();
   const queryClient = useQueryClient();
@@ -47,8 +48,27 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
         });
       }
     },
+    onMutate: async ({ id }) => {
+      // Add item to updating set
+      setUpdatingItems(prev => new Set(prev).add(id));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
+    },
+    onError: (error, variables) => {
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update item quantity.',
+        variant: 'destructive',
+      });
+    },
+    onSettled: (data, error, variables) => {
+      // Remove item from updating set
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.id);
+        return newSet;
+      });
     },
   });
 
@@ -170,7 +190,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
+                            <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                               {item.product.image_url ? (
                                 <img
                                   src={item.product.image_url}
@@ -187,7 +207,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                                 className="w-full h-full flex items-center justify-center" 
                                 style={{ display: item.product.image_url ? 'none' : 'flex' }}
                               >
-                                <i className="fas fa-box text-gray-400 text-lg"></i>
+                                <i className="fas fa-box text-gray-400 text-2xl"></i>
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -201,10 +221,14 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleQuantityChange(item._id, -1)}
-                                disabled={updateQuantityMutation.isPending}
-                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600"
+                                disabled={updatingItems.has(item._id)}
+                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600 hover:text-blue-400"
                               >
-                                <i className="fas fa-minus text-xs"></i>
+                                {updatingItems.has(item._id) ? (
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-300"></div>
+                                ) : (
+                                  <i className="fas fa-minus text-xs"></i>
+                                )}
                               </Button>
                               <span className="text-white font-medium px-2 min-w-[2rem] text-center">
                                 {item.quantity}
@@ -213,10 +237,14 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleQuantityChange(item._id, 1)}
-                                disabled={updateQuantityMutation.isPending}
-                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600"
+                                disabled={updatingItems.has(item._id)}
+                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600 hover:text-blue-400"
                               >
-                                <i className="fas fa-plus text-xs"></i>
+                                {updatingItems.has(item._id) ? (
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-300"></div>
+                                ) : (
+                                  <i className="fas fa-plus text-xs"></i>
+                                )}
                               </Button>
                             </div>
                             <p className="text-blue-600 font-bold text-sm min-w-[4rem] text-right">

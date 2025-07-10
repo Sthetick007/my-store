@@ -11,6 +11,7 @@ import type { Product } from '@shared/schema';
 
 export function Store() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadingProducts, setLoadingProducts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { hapticFeedback } = useTelegram();
   const queryClient = useQueryClient();
@@ -77,7 +78,11 @@ export function Store() {
 
       const data = await response.json();
       console.log('✅ Add to cart success:', data);
-      return data;
+      return { ...data, productId };
+    },
+    onMutate: async ({ productId }) => {
+      // Add product to loading set
+      setLoadingProducts(prev => new Set(prev).add(productId));
     },
     onSuccess: (data) => {
       console.log('🎉 Mutation success callback:', data);
@@ -89,13 +94,21 @@ export function Store() {
       // Invalidate cart queries to refresh cart data
       queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
       console.error('💥 Mutation error callback:', error);
       hapticFeedback('error');
       toast({
         title: 'Error',
         description: error?.message || 'Failed to add product to cart.',
         variant: 'destructive',
+      });
+    },
+    onSettled: (data, error, variables) => {
+      // Remove product from loading set
+      setLoadingProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(variables.productId);
+        return newSet;
       });
     },
   });
@@ -120,6 +133,8 @@ export function Store() {
 
   const ProductCard = ({ product }: { product: Product }) => {
     console.log('🎨 Rendering product card:', product.name, 'ID:', product._id);
+    
+    const isLoading = loadingProducts.has(product._id!);
     
     return (
       <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 overflow-hidden hover:border-blue-600 transition-all duration-300 group">
@@ -156,15 +171,15 @@ export function Store() {
             <Button
               size="sm"
               onClick={() => handleAddToCart(product._id!)}
-              disabled={addToCartMutation.isPending}
+              disabled={isLoading}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
             >
-              {addToCartMutation.isPending ? (
+              {isLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               ) : (
                 <i className="fas fa-cart-plus text-white mr-2"></i>
               )}
-              {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
+              {isLoading ? 'Adding...' : 'Add to Cart'}
             </Button>
           </div>
         </CardContent>
