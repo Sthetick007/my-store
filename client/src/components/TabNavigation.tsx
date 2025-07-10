@@ -16,21 +16,21 @@ export function TabNavigation({ activeTab, onTabChange, isAdmin }: TabNavigation
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-dark-glass backdrop-blur-md border-t border-gray-800 z-50">
-      <div className="grid grid-cols-4 py-1">
+    <nav className="fixed bottom-0 left-0 right-0 bg-dark-glass backdrop-blur-md border-t border-gray-800 z-50 w-full">
+      <div className="grid grid-cols-4 py-1 max-w-screen-xl mx-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              'flex flex-col items-center py-2 px-4 transition-colors',
+              'flex flex-col items-center py-2 px-2 transition-colors min-w-0',
               activeTab === tab.id
                 ? 'text-accent-blue'
                 : 'text-gray-400 hover:text-white'
             )}
           >
             <i className={cn(tab.icon, 'text-lg mb-0.5')}></i>
-            <span className="text-xs font-medium">{tab.label}</span>
+            <span className="text-xs font-medium truncate">{tab.label}</span>
           </button>
         ))}
       </div>

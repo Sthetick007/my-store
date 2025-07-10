@@ -168,9 +168,9 @@ export function Store() {
   };
 
   return (
-    <div className="pb-4">
+    <div className="pb-24">
       {/* Search Bar */}
-      <div className="p-4">
+      <div className="p-4 max-w-4xl mx-auto">
         <div className="relative">
           <Input
             type="text"
@@ -184,7 +184,7 @@ export function Store() {
       </div>
 
       {/* All Products */}
-      <div className="px-4">
+      <div className="px-4 max-w-4xl mx-auto">
         <h2 className="text-xl font-bold text-white mb-4">Products</h2>
         {productsLoading ? (
           <div className="grid grid-cols-2 gap-4">

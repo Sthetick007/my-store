@@ -30,7 +30,7 @@ export function Settings() {
   if (!user) return null;
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 pb-24 space-y-6 max-w-md mx-auto">
 
       {/* User Profile Card */}
       <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
@@ -42,18 +42,18 @@ export function Settings() {
                 {user.firstName?.[0]}{user.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h3 className="text-lg font-semibold">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold truncate">
                 {user.firstName} {user.lastName}
               </h3>
-              <p className="text-gray-400 text-sm">@{user.username}</p>
+              <p className="text-gray-400 text-sm truncate">@{user.username}</p>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-gray-400">Email</span>
-            <span className="text-white">{user.email}</span>
+            <span className="text-white text-sm truncate">{user.email}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-400">Role</span>
@@ -61,6 +61,12 @@ export function Settings() {
               {user.isAdmin ? 'Admin' : 'User'}
             </Badge>
           </div>
+          {user.balance !== undefined && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Balance</span>
+              <span className="text-white font-semibold">${user.balance.toFixed(2)}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 

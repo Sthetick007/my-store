@@ -124,12 +124,12 @@ export function PaymentOptions() {
   // Step 1: Amount Selection
   if (currentStep === 'amount') {
     return (
-      <div className="p-4 space-y-6">
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+      <div className="p-4 pb-24 space-y-6 max-w-md mx-auto w-full min-w-0">
+        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <i className="fas fa-wallet mr-3 text-accent-blue"></i>
-              Add Funds to Wallet
+            <CardTitle className="text-white flex items-center min-w-0">
+              <i className="fas fa-wallet mr-3 text-accent-blue flex-shrink-0"></i>
+              <span className="truncate">Add Funds to Wallet</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -141,22 +141,22 @@ export function PaymentOptions() {
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 text-lg h-12"
+                className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 text-lg h-12 w-full"
               />
             </div>
             
             <div className="space-y-2">
               <Label className="text-gray-400">Quick Select</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 w-full">
                 {quickAmounts.map((amt) => (
                   <Button
                     key={amt}
                     variant="outline"
                     size="sm"
                     onClick={() => setAmount(amt)}
-                    className="bg-gray-800/50 border-gray-700 text-white hover:bg-gray-700 hover:border-accent-blue"
+                    className="bg-gray-800/50 border-gray-700 text-white hover:bg-gray-700 hover:border-accent-blue w-full min-w-0"
                   >
-                    ${amt}
+                    <span className="truncate">${amt}</span>
                   </Button>
                 ))}
               </div>
@@ -173,15 +173,15 @@ export function PaymentOptions() {
         </Card>
 
         {/* Transaction History */}
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
           <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <span>Recent Transactions</span>
+            <CardTitle className="text-white flex items-center justify-between min-w-0">
+              <span className="truncate">Recent Transactions</span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowHistory(true)}
-                className="text-accent-blue hover:bg-accent-blue/20"
+                className="text-accent-blue hover:bg-accent-blue/20 flex-shrink-0"
               >
                 View All
               </Button>
@@ -195,7 +195,7 @@ export function PaymentOptions() {
         {/* Full History Modal */}
         {showHistory && (
           <Dialog open={showHistory} onOpenChange={setShowHistory}>
-            <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md max-h-[80vh] overflow-y-auto w-[95vw] mx-auto">
               <DialogHeader>
                 <DialogTitle className="text-white">Transaction History</DialogTitle>
               </DialogHeader>
@@ -210,53 +210,53 @@ export function PaymentOptions() {
   // Step 2: Payment Method Selection
   if (currentStep === 'method') {
     return (
-      <div className="p-4 space-y-6">
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+      <div className="p-4 pb-24 space-y-6 max-w-md mx-auto w-full min-w-0">
+        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
           <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <span>Select Payment Method</span>
-              <Badge className="bg-accent-blue text-white">${amount}</Badge>
+            <CardTitle className="text-white flex items-center justify-between min-w-0">
+              <span className="truncate">Select Payment Method</span>
+              <Badge className="bg-accent-blue text-white flex-shrink-0">${amount}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* UPI Option */}
             <Card 
-              className="bg-gray-800/50 border-gray-700 cursor-pointer hover:border-accent-blue transition-all"
+              className="bg-gray-800/50 border-gray-700 cursor-pointer hover:border-accent-blue transition-all w-full"
               onClick={() => handleMethodSelect('upi')}
             >
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                <div className="flex items-center justify-between min-w-0">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center shrink-0">
                       <i className="fas fa-mobile-alt text-orange-400 text-xl"></i>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">UPI Payment</p>
-                      <p className="text-gray-400 text-sm">Pay with any UPI app</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">UPI Payment</p>
+                      <p className="text-gray-400 text-sm truncate">Pay with any UPI app</p>
                     </div>
                   </div>
-                  <Badge className="bg-green-500 text-white">Instant</Badge>
+                  <Badge className="bg-green-500 text-white shrink-0 ml-2">Instant</Badge>
                 </div>
               </CardContent>
             </Card>
 
             {/* Crypto Option */}
             <Card 
-              className="bg-gray-800/50 border-gray-700 cursor-pointer hover:border-accent-blue transition-all"
+              className="bg-gray-800/50 border-gray-700 cursor-pointer hover:border-accent-blue transition-all w-full"
               onClick={() => handleMethodSelect('crypto')}
             >
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                <div className="flex items-center justify-between min-w-0">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
                       <i className="fab fa-bitcoin text-yellow-400 text-xl"></i>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Cryptocurrency</p>
-                      <p className="text-gray-400 text-sm">Pay with Bitcoin/USDT</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">Cryptocurrency</p>
+                      <p className="text-gray-400 text-sm truncate">Pay with Bitcoin/USDT</p>
                     </div>
                   </div>
-                  <Badge className="bg-blue-500 text-white">Secure</Badge>
+                  <Badge className="bg-blue-500 text-white shrink-0 ml-2">Secure</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -278,54 +278,54 @@ export function PaymentOptions() {
   // Step 3: QR Code Display
   if (currentStep === 'qr') {
     return (
-      <div className="p-4 space-y-6">
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+      <div className="p-4 pb-24 space-y-6 max-w-md mx-auto w-full min-w-0">
+        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
           <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <span>Scan QR to Pay</span>
-              <Badge className="bg-accent-blue text-white">${amount}</Badge>
+            <CardTitle className="text-white flex items-center justify-between min-w-0">
+              <span className="truncate">Scan QR to Pay</span>
+              <Badge className="bg-accent-blue text-white flex-shrink-0">${amount}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 text-center">
             {/* QR Code */}
-            <div className="flex justify-center">
-              <div className="bg-white p-4 rounded-lg">
+            <div className="flex justify-center w-full">
+              <div className="bg-white p-4 rounded-lg w-full max-w-[280px] mx-auto">
                 <img
                   src={getQRCode()}
                   alt="Payment QR Code"
-                  className="w-64 h-64"
+                  className="w-full h-auto max-w-[250px] max-h-[250px] mx-auto"
                 />
               </div>
             </div>
 
             {/* Payment Instructions */}
-            <div className="space-y-2">
-              <h3 className="text-white font-medium">
+            <div className="space-y-2 text-left w-full">
+              <h3 className="text-white font-medium text-center truncate">
                 {paymentMethod === 'upi' ? 'UPI Payment Instructions' : 'Crypto Payment Instructions'}
               </h3>
               <div className="text-gray-400 text-sm space-y-1">
                 {paymentMethod === 'upi' ? (
                   <>
-                    <p>1. Open any UPI app (PhonePe, GPay, Paytm)</p>
-                    <p>2. Scan the QR code above</p>
-                    <p>3. Enter amount: <span className="text-accent-blue font-bold">${amount}</span></p>
-                    <p>4. Complete the payment</p>
-                    <p>5. Copy the transaction ID and enter below</p>
+                    <p className="break-words">1. Open any UPI app (PhonePe, GPay, Paytm)</p>
+                    <p className="break-words">2. Scan the QR code above</p>
+                    <p className="break-words">3. Enter amount: <span className="text-accent-blue font-bold">${amount}</span></p>
+                    <p className="break-words">4. Complete the payment</p>
+                    <p className="break-words">5. Copy the transaction ID and enter below</p>
                   </>
                 ) : (
                   <>
-                    <p>1. Open your crypto wallet app</p>
-                    <p>2. Scan the QR code above</p>
-                    <p>3. Send exact amount: <span className="text-accent-blue font-bold">${amount}</span></p>
-                    <p>4. Wait for confirmation</p>
-                    <p>5. Copy the transaction hash and enter below</p>
+                    <p className="break-words">1. Open your crypto wallet app</p>
+                    <p className="break-words">2. Scan the QR code above</p>
+                    <p className="break-words">3. Send exact amount: <span className="text-accent-blue font-bold">${amount}</span></p>
+                    <p className="break-words">4. Wait for confirmation</p>
+                    <p className="break-words">5. Copy the transaction hash and enter below</p>
                   </>
                 )}
               </div>
             </div>
 
             {/* Order ID Input */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-left w-full">
               <Label htmlFor="orderId" className="text-gray-400">
                 {paymentMethod === 'upi' ? 'Transaction/Order ID' : 'Transaction Hash'}
               </Label>
@@ -334,15 +334,15 @@ export function PaymentOptions() {
                 placeholder={paymentMethod === 'upi' ? 'Enter transaction ID' : 'Enter transaction hash'}
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400"
+                className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 w-full"
               />
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex flex-col space-y-3 w-full">
               <Button
                 onClick={() => setCurrentStep('method')}
                 variant="outline"
-                className="flex-1 border-gray-700 text-gray-400 hover:bg-gray-700"
+                className="w-full border-gray-700 text-gray-400 hover:bg-gray-700"
               >
                 <i className="fas fa-arrow-left mr-2"></i>
                 Back
@@ -350,7 +350,7 @@ export function PaymentOptions() {
               <Button
                 onClick={handleVerifyPayment}
                 disabled={!orderId.trim() || createTransactionMutation.isPending}
-                className="flex-1 bg-accent-blue hover:bg-accent-blue-dark"
+                className="w-full bg-accent-blue hover:bg-accent-blue-dark"
               >
                 {createTransactionMutation.isPending ? (
                   <>
@@ -374,8 +374,8 @@ export function PaymentOptions() {
   // Step 4: Verification Status
   if (currentStep === 'verification') {
     return (
-      <div className="p-4 space-y-6">
-        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+      <div className="p-4 pb-24 space-y-6 max-w-md mx-auto w-full min-w-0">
+        <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
           <CardContent className="p-8 text-center space-y-6">
             {/* Success Icon */}
             <div className="mx-auto w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
@@ -384,37 +384,37 @@ export function PaymentOptions() {
 
             {/* Status Message */}
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Payment Under Verification</h2>
-              <p className="text-gray-400">
+              <h2 className="text-2xl font-bold text-white break-words">Payment Under Verification</h2>
+              <p className="text-gray-400 break-words">
                 Your payment of <span className="text-accent-blue font-bold">${amount}</span> is being verified.
               </p>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-sm break-words">
                 Your balance will be updated once the payment is approved by our admin team.
               </p>
             </div>
 
             {/* Transaction Details */}
-            <div className="bg-gray-800/50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Amount:</span>
-                <span className="text-white">${amount}</span>
+            <div className="bg-gray-800/50 rounded-lg p-4 space-y-2 w-full">
+              <div className="flex justify-between text-sm min-w-0">
+                <span className="text-gray-400 flex-shrink-0">Amount:</span>
+                <span className="text-white truncate ml-2">${amount}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Method:</span>
-                <span className="text-white capitalize">{paymentMethod}</span>
+              <div className="flex justify-between text-sm min-w-0">
+                <span className="text-gray-400 flex-shrink-0">Method:</span>
+                <span className="text-white capitalize truncate ml-2">{paymentMethod}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Order ID:</span>
-                <span className="text-white font-mono text-xs">{orderId}</span>
+              <div className="flex justify-between text-sm min-w-0">
+                <span className="text-gray-400 flex-shrink-0">Order ID:</span>
+                <span className="text-white font-mono text-xs break-all ml-2">{orderId}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Status:</span>
-                <Badge className="bg-yellow-500 text-white">Pending</Badge>
+              <div className="flex justify-between text-sm min-w-0">
+                <span className="text-gray-400 flex-shrink-0">Status:</span>
+                <Badge className="bg-yellow-500 text-white ml-2">Pending</Badge>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-3">
+            <div className="space-y-3 w-full">
               <Button
                 onClick={refreshBalance}
                 className="w-full bg-green-500 hover:bg-green-600"
@@ -444,7 +444,7 @@ export function PaymentOptions() {
         {/* Transaction History Modal */}
         {showHistory && (
           <Dialog open={showHistory} onOpenChange={setShowHistory}>
-            <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogContent className="bg-dark-card/90 backdrop-blur-md border-gray-700 max-w-md max-h-[80vh] overflow-y-auto w-[95vw] mx-auto">
               <DialogHeader>
                 <DialogTitle className="text-white">Transaction History</DialogTitle>
               </DialogHeader>

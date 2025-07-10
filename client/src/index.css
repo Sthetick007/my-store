@@ -140,10 +140,50 @@
     @apply focus:outline-none focus:ring-2 focus:ring-accent-blue focus:ring-offset-2 focus:ring-offset-background;
   }
 
+  /* Mobile layout fixes */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Ensure all containers don't exceed viewport width */
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Additional mobile fixes for wallet/payment sections */
+  .max-w-md {
+    max-width: min(28rem, calc(100vw - 2rem));
+  }
+
+  /* Prevent any element from causing horizontal scroll */
+  .w-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Fix flexbox overflow issues */
+  .flex {
+    min-width: 0;
+  }
+
+  .flex > * {
+    min-width: 0;
+  }
+
   /* Text truncation utilities */
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -151,13 +191,19 @@
   .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
   /* Card hover effects */
   .card-hover {
-    @apply transition-all-smooth hover:shadow-lg hover:shadow-accent-blue/10 hover:border-accent-blue/50;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.5);
   }
 
   /* Button animations */

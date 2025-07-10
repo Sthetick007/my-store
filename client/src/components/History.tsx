@@ -52,7 +52,6 @@ export function History({ limit }: HistoryProps = {}) {
     { id: 'all', label: 'All' },
     { id: 'purchase', label: 'Purchases' },
     { id: 'deposit', label: 'Deposits' },
-    { id: 'withdrawal', label: 'Withdrawals' },
   ];
 
   const formatDate = (dateString: string) => {
@@ -168,19 +167,19 @@ export function History({ limit }: HistoryProps = {}) {
         ) : (
           <div className="space-y-3">
             {transactions?.slice(0, limit || transactions.length).map((transaction) => (
-              <Card key={transaction.id} className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
+              <Card key={transaction.id} className="bg-dark-card/50 backdrop-blur-sm border-gray-700 w-full">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTransactionColor(transaction.type)}`}>
+                  <div className="flex items-center justify-between min-w-0">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getTransactionColor(transaction.type)}`}>
                         <i className={getTransactionIcon(transaction.type)}></i>
                       </div>
-                      <div>
-                        <p className="text-white font-medium text-sm">{transaction.description}</p>
-                        <p className="text-gray-400 text-xs">{formatDate(transaction.createdAt!.toString())}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-medium text-sm truncate">{transaction.description}</p>
+                        <p className="text-gray-400 text-xs truncate">{formatDate(transaction.createdAt!.toString())}</p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0 ml-2">
                       <p className={`font-semibold ${
                         transaction.amount > 0 ? 'text-green-500' : 'text-red-500'
                       }`}>
@@ -191,11 +190,6 @@ export function History({ limit }: HistoryProps = {}) {
                       </Badge>
                     </div>
                   </div>
-                  {transaction.metadata && (
-                    <p className="text-gray-400 text-xs ml-13">
-                      {JSON.stringify(transaction.metadata)}
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             ))}
