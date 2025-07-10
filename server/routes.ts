@@ -22,7 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/products', productRoutes);
   app.use('/api/cart', cartRoutes);
   app.use('/api/transactions', transactionRoutes);
-  app.use('api/admin', adminRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api/user', userRoutes);
   app.use('/api', miscRoutes); // For health and webhook routes
 
