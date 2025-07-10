@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { insertProductSchema, insertSentProductSchema } from "@shared/schema";
+import { insertProductSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAdminAuthenticated } from "../adminAuth";
-import { SentProduct } from "../models/SentProduct";
 import Product from "../models/Product";
 
 const router = Router();
@@ -15,7 +14,6 @@ router.get('/users', isAdminAuthenticated, async (req: any, res) => {
     console.log('🔐 Admin auth payload:', req.admin);
     const users = await storage.getAllUsers();
     console.log('👥 Found users:', users.length);
-    console.log('📊 Users data:', users);
     res.json({ success: true, users });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -67,14 +65,24 @@ router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => 
       return res.status(400).json({ message: "Balance must be a number" });
     }
     
-    const user = await storage.updateUserBalance(userId, balance);
+    const user = await storage.updateUserBalanceWithLogging(
+      userId, 
+      balance,
+      reason || 'Admin direct balance update',
+      'admin_direct',
+      req.admin?.id,
+      req.admin?.email,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Log the balance change (optional)
-    console.log(`Admin updated user ${userId} balance to ${balance}. Reason: ${reason}`);
+    console.log(`✅ Admin updated user ${userId} balance to ${balance}. Reason: ${reason}`);
     
     res.json({ message: "User balance updated successfully", user });
   } catch (error) {
@@ -83,36 +91,81 @@ router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => 
   }
 });
 
-// Update user balance by telegram ID
-router.put('/users/telegram/:telegramId/balance', isAdminAuthenticated, async (req: any, res) => {
+// Add balance to user
+router.post('/users/:id/add-balance', isAdminAuthenticated, async (req: any, res) => {
   try {
-    const telegramId = req.params.telegramId;
-    const { balance, reason } = req.body;
+    const userId = req.params.id;
+    const { amount, reason } = req.body;
     
-    if (typeof balance !== 'number') {
-      return res.status(400).json({ message: "Balance must be a number" });
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ message: "Amount must be a positive number" });
     }
     
-    // First get the user by telegram ID
-    const user = await storage.getUserByTelegramId(telegramId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Then update the balance using the user ID
-    const updatedUser = await storage.updateUserBalance(user.id, balance);
+    const newBalance = (user.balance || 0) + amount;
     
-    if (!updatedUser) {
-      return res.status(404).json({ message: "Failed to update user balance" });
+    const updatedUser = await storage.updateUserBalanceWithLogging(
+      userId, 
+      newBalance,
+      reason || `Admin added balance: +$${amount}`,
+      'admin_add',
+      req.admin?.id,
+      req.admin?.email,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
+    
+    console.log(`✅ Admin added $${amount} to user ${userId}. New balance: ${newBalance}. Reason: ${reason}`);
+    
+    res.json({ message: "Balance added successfully", user: updatedUser });
+  } catch (error) {
+    console.error("Error adding balance:", error);
+    res.status(500).json({ message: "Failed to add balance" });
+  }
+});
+
+// Remove balance from user
+router.post('/users/:id/remove-balance', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.params.id;
+    const { amount, reason } = req.body;
+    
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ message: "Amount must be a positive number" });
     }
     
-    // Log the balance change (optional)
-    console.log(`Admin updated user ${telegramId} (${user.id}) balance to ${balance}. Reason: ${reason}`);
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
     
-    res.json({ message: "User balance updated successfully", user: updatedUser });
+    const newBalance = Math.max(0, (user.balance || 0) - amount);
+    
+    const updatedUser = await storage.updateUserBalanceWithLogging(
+      userId, 
+      newBalance,
+      reason || `Admin removed balance: -$${amount}`,
+      'admin_remove',
+      req.admin?.id,
+      req.admin?.email,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
+    
+    console.log(`✅ Admin removed $${amount} from user ${userId}. New balance: ${newBalance}. Reason: ${reason}`);
+    
+    res.json({ message: "Balance removed successfully", user: updatedUser });
   } catch (error) {
-    console.error("Error updating user balance:", error);
-    res.status(500).json({ message: "Failed to update user balance" });
+    console.error("Error removing balance:", error);
+    res.status(500).json({ message: "Failed to remove balance" });
   }
 });
 
@@ -120,12 +173,14 @@ router.put('/users/telegram/:telegramId/balance', isAdminAuthenticated, async (r
 router.get('/stats', isAdminAuthenticated, async (req: any, res) => {
   try {
     const users = await storage.getAllUsers();
-    const totalRevenue = await storage.getTotalRevenue();
+    // Count total products sent via admin panel
+    const sentLogs = await storage.getSentProductLogs();
+    const totalSales = sentLogs.length;
     const pendingTransactions = await storage.getPendingTransactions();
     
     res.json({
       totalUsers: users.length,
-      totalRevenue,
+      totalSales,
       pendingTransactions: pendingTransactions.length,
     });
   } catch (error) {
@@ -209,7 +264,6 @@ router.get('/transactions', isAdminAuthenticated, async (req: any, res) => {
     }
     
     console.log('✅ Admin found transactions:', transactions.length);
-    console.log('📄 Admin transaction details:', transactions);
     res.json({ success: true, transactions });
   } catch (error) {
     console.error("❌ Error fetching admin transactions:", error);
@@ -229,13 +283,25 @@ router.post('/transactions/:id/approve', isAdminAuthenticated, async (req: any, 
 
     console.log('✅ Transaction approved:', transaction);
     
-    // Add balance to user account after approval
+    // Add balance to user account after approval with logging
     if (transaction.type === 'deposit') {
       const targetUser = await storage.getUser(transaction.userId);
       if (targetUser) {
         const currentBalance = targetUser.balance || 0;
         const newBalance = currentBalance + transaction.amount;
-        await storage.updateUserBalance(transaction.userId, newBalance);
+        await storage.updateUserBalanceWithLogging(
+          transaction.userId,
+          newBalance,
+          `Transaction approved: ${transaction.description || transaction.type} - $${transaction.amount}`,
+          'transaction_approval',
+          req.admin?.id,
+          req.admin?.email,
+          {
+            transactionId: transaction.id,
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+          }
+        );
         console.log(`💰 Updated user ${transaction.userId} balance from ${currentBalance} to ${newBalance}`);
       }
     }
@@ -256,8 +322,26 @@ router.post('/transactions/:id/deny', isAdminAuthenticated, async (req: any, res
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
-
+    
     console.log('🚫 Transaction denied:', transaction);
+    
+    // Log the denial
+    if (transaction.type === 'deposit') {
+      await storage.logBalanceChange({
+        userId: transaction.userId,
+        adminId: req.admin?.id,
+        adminEmail: req.admin?.email,
+        previousBalance: 0, // No balance change on denial
+        newBalance: 0,
+        reason: `Transaction denied: ${transaction.description || transaction.type} - $${transaction.amount}`,
+        changeType: 'transaction_denial',
+        metadata: {
+          transactionId: transaction.id,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
+      });
+    }
     
     res.json(transaction);
   } catch (error) {
@@ -266,40 +350,27 @@ router.post('/transactions/:id/deny', isAdminAuthenticated, async (req: any, res
   }
 });
 
-// Admin messages
-router.post('/messages', isAdminAuthenticated, async (req: any, res) => {
-  try {
-    const { userId: targetUserId, productId, message: userMessage, credentials } = req.body;
-    
-    // In a real app, this would insert into a product_messages table
-    // For now, we'll return success
-    res.json({ 
-      message: "Message sent successfully",
-      targetUserId,
-      productId,
-      userMessage,
-      credentials 
-    });
-  } catch (error) {
-    console.error("Error sending message:", error);
-    res.status(500).json({ message: "Failed to send message" });
-  }
-});
-
 // Send product to user
 router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
   try {
     console.log('📦 Admin sending product with data:', req.body);
-    const { userId, productId, username, password, instructions } = req.body;
+    const { telegramId, productId, username, password, instructions } = req.body;
     
     // Validate required fields
-    if (!userId || !productId || !username || !password) {
-      console.log('❌ Missing required fields:', { userId, productId, username, password });
+    if (!telegramId || !productId || !username || !password) {
+      console.log('❌ Missing required fields:', { telegramId, productId, username, password });
       return res.status(400).json({ 
         message: "Missing required fields", 
-        required: ["userId", "productId", "username", "password"],
-        received: { userId, productId, username, password }
+        required: ["telegramId", "productId", "username", "password"],
+        received: { telegramId, productId, username, password }
       });
+    }
+    
+    // Get user by telegram ID first
+    const user = await storage.getUserByTelegramId(telegramId);
+    if (!user) {
+      console.log('❌ User not found with telegram ID:', telegramId);
+      return res.status(404).json({ message: "User not found" });
     }
     
     // Get product details
@@ -312,33 +383,70 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     
     console.log('✅ Product found:', product.name);
     
-    // Create sent product record
-    const sentProduct = new SentProduct({
-      userId,
+    // Log the sent product
+    await storage.logSentProduct({
+      userId: user.id,
+      userTelegramId: telegramId,
+      userName: user.firstName || 'Unknown',
       productId,
       productName: product.name,
       username,
       password,
       instructions: instructions || '',
-      sentAt: new Date(),
-      isActive: true,
+      adminId: req.admin?.id,
+      adminEmail: req.admin?.email,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
     
-    await sentProduct.save();
-    console.log('✅ Product sent successfully:', sentProduct._id);
+    console.log('✅ Product sent successfully to user:', user.id);
     
     res.json({ 
       message: "Product sent successfully",
       sentProduct: {
-        id: sentProduct._id,
+        userId: user.id,
         productName: product.name,
         username,
-        instructions
+        instructions: instructions || ''
       }
     });
   } catch (error) {
     console.error("❌ Error sending product:", error);
     res.status(500).json({ message: "Failed to send product" });
+  }
+});
+
+// Get balance change logs
+router.get('/balance-logs', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.query.userId as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    console.log('📊 Admin fetching balance logs...');
+    const logs = await storage.getBalanceLogs(userId, limit);
+    console.log('✅ Balance logs found:', logs.length);
+    
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error("❌ Error fetching balance logs:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch balance logs" });
+  }
+});
+
+// Get sent product logs
+router.get('/sent-product-logs', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.query.userId as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    console.log('📊 Admin fetching sent product logs...');
+    const logs = await storage.getSentProductLogs(userId, limit);
+    console.log('✅ Sent product logs found:', logs.length);
+    
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error("❌ Error fetching sent product logs:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch sent product logs" });
   }
 });
 
