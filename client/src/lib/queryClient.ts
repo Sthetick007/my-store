@@ -39,24 +39,82 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+  // Always add Accept header for JSON to prevent HTML responses
+  headers["Accept"] = "application/json";
+
+  console.log(`API Request: ${method} ${url}`, { 
+    headers: { ...headers, Authorization: headers.Authorization ? "Bearer [REDACTED]" : "None" }, 
+    data: data ? "Present" : "None" 
   });
 
-  await throwIfResNotOk(res);
-  
-  const contentType = res.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return await res.json();
-  } else {
-    const text = await res.text();
-    if (text.includes('<!DOCTYPE html>')) {
-      throw new Error('Server returned HTML instead of JSON. Check authentication.');
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+
+    // Check if the response is OK before proceeding
+    if (!res.ok) {
+      const contentType = res.headers.get('content-type');
+      
+      // If it's JSON, parse the error
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await res.json();
+        const errorMessage = errorData.message || errorData.error || `Error ${res.status}: ${res.statusText}`;
+        
+        // Handle authentication errors
+        if (res.status === 401 || res.status === 403) {
+          console.error('Authentication error:', errorMessage);
+          // Clear token on auth errors
+          localStorage.removeItem('admin_token');
+          throw new Error(`Authentication error: ${errorMessage}. Please login again.`);
+        }
+        
+        throw new Error(errorMessage);
+      } else {
+        // Handle non-JSON responses (like HTML error pages)
+        const text = await res.text();
+        console.error(`Non-JSON error response:`, { 
+          status: res.status, 
+          statusText: res.statusText, 
+          preview: text.substring(0, 200) 
+        });
+        
+        if (text.includes('<!DOCTYPE html>')) {
+          // Authentication issues often return HTML
+          if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('admin_token');
+            throw new Error('Session expired. Please login again.');
+          }
+          throw new Error('Server returned HTML instead of JSON. Check authentication.');
+        }
+        
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
     }
-    throw new Error('Invalid response format');
+  
+    // Process successful response
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const jsonData = await res.json();
+      console.log(`API Response: ${res.status} ${res.statusText}`, jsonData);
+      return jsonData;
+    } else {
+      const text = await res.text();
+      console.error(`API Response Error: Non-JSON response`, { 
+        status: res.status, 
+        statusText: res.statusText,
+        contentType, 
+        textPreview: text.substring(0, 200) 
+      });
+      
+      throw new Error(`Invalid response format: ${text.substring(0, 100)}`);
+    }
+  }  catch (error) {
+    console.error(`API Request failed: ${method} ${url}`, error);
+    throw error;
   }
 }
 

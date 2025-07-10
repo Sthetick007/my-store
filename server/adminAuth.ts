@@ -69,6 +69,9 @@ export function setupAdminAuth(app: express.Express) {
 
 // Middleware to verify admin authentication
 export function isAdminAuthenticated(req: any, res: any, next: any) {
+  // Always set Content-Type to application/json to prevent HTML responses
+  res.setHeader('Content-Type', 'application/json');
+  
   const auth = req.headers.authorization;
   console.log('🔐 Admin auth check - Authorization header:', auth ? 'present' : 'missing');
   
@@ -79,25 +82,46 @@ export function isAdminAuthenticated(req: any, res: any, next: any) {
 
   try {
     const token = auth.replace('Bearer ', '');
-    console.log('🔑 Token extracted:', token ? 'present' : 'empty');
     
-    const payload = jwt.verify(token, JWT_SECRET) as any;
-    console.log('✅ Token payload:', payload);
-    
-    if (!payload.isAdmin) {
-      console.log('❌ Token is not admin');
-      return res.status(403).json({ success: false, message: 'Admin access required' });
+    if (!token || token === 'null' || token === 'undefined') {
+      console.log('❌ Empty or invalid token');
+      return res.status(401).json({ success: false, message: 'Invalid token format' });
     }
     
-    req.admin = {
-      username: payload.username,
-      isAdmin: true
-    };
+    console.log('🔑 Token extracted, verifying...');
     
-    console.log('✅ Admin authenticated successfully');
-    next();
-  } catch (error) {
-    console.error('❌ Token verification failed:', error);
-    return res.status(401).json({ success: false, message: 'Invalid token' });
+    try {
+      const payload = jwt.verify(token, JWT_SECRET) as any;
+      console.log('✅ Token payload:', payload);
+      
+      if (!payload.isAdmin) {
+        console.log('❌ Token is not admin');
+        return res.status(403).json({ success: false, message: 'Admin access required' });
+      }
+      
+      req.admin = {
+        username: payload.username,
+        id: payload.id || payload.username,
+        email: payload.email || payload.username,
+        isAdmin: true
+      };
+      
+      console.log('✅ Admin authenticated successfully:', req.admin);
+      next();
+    } catch (error) {
+      const jwtError = error as Error;
+      console.error('❌ JWT verification failed:', jwtError.message);
+      
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ success: false, message: 'Token expired' });
+      } else if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({ success: false, message: 'Invalid token' });
+      } else {
+        return res.status(401).json({ success: false, message: 'Authentication failed' });
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ Token processing failed:', error.message);
+    return res.status(401).json({ success: false, message: 'Invalid authorization' });
   }
 }

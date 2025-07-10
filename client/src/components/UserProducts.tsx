@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import type { Transaction } from '@shared/schema';
 
 interface ProductMessage {
@@ -22,14 +23,53 @@ interface ProductMessage {
 
 export function UserProducts() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: transactions, isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
   });
 
   const { data: productMessages, isLoading: messagesLoading } = useQuery<ProductMessage[]>({
-    queryKey: ['/api/user/products'],
-    enabled: !!user,
+    queryKey: ['/api/user/products', user?.id],
+    queryFn: async () => {
+      try {
+        // If we have a user, first try the direct endpoint with user ID
+        if (user && user.id) {
+          console.log('Fetching products for user ID:', user.id);
+          
+          // Try the direct endpoint first
+          const directResponse = await fetch(`/api/user/products/by-id/${user.id}`);
+          
+          if (directResponse.ok) {
+            const data = await directResponse.json();
+            console.log('Fetched user products directly:', data);
+            return data;
+          }
+          
+          console.log('Direct fetch failed, trying authenticated endpoint');
+          
+          // Fall back to authenticated endpoint
+          const response = await fetch('/api/user/products', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('telegram_token')}`
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch products');
+          }
+          
+          const data = await response.json();
+          console.log('Fetched user products via auth:', data);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching user products:', error);
+        return [];
+      }
+    },
+    enabled: !!user?.id,
   });
 
   // Use real product messages data
@@ -46,12 +86,12 @@ export function UserProducts() {
         </div>
       </div>
 
-      {/* Active Subscriptions */}
+      {/* Purchased Items */}
       <Card className="bg-dark-card/50 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center">
             <i className="fas fa-box mr-2 text-accent-blue"></i>
-            Active Subscriptions
+            Purchased Items
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -64,8 +104,8 @@ export function UserProducts() {
           ) : !productMessages || productMessages.length === 0 ? (
             <div className="text-center py-8">
               <i className="fas fa-shopping-bag text-gray-500 text-4xl mb-4"></i>
-              <p className="text-gray-400 text-lg">No active subscriptions</p>
-              <p className="text-gray-500 text-sm">Purchase a subscription to get started</p>
+              <p className="text-gray-400 text-lg">No purchased items</p>
+              <p className="text-gray-500 text-sm">Products sent to you by admin will appear here</p>
             </div>
           ) : (
             productMessages.map((product) => (
@@ -94,30 +134,80 @@ export function UserProducts() {
                     )}
                     
                     {product.credentials && (
-                      <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">
-                        <h4 className="text-white font-medium text-sm">Access Details:</h4>
+                      <div className="bg-gradient-to-r from-gray-800/70 to-gray-800/40 rounded-lg p-3 space-y-2 border border-gray-700/50 shadow-md">
+                        <h4 className="text-white font-medium text-sm flex items-center">
+                          <i className="fas fa-key mr-1 text-accent-blue"></i> Access Details:
+                        </h4>
                         {product.credentials.username && (
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center bg-gray-900/50 rounded p-2">
                             <span className="text-gray-400 text-xs">Username:</span>
-                            <span className="text-white font-mono text-xs">{product.credentials.username}</span>
+                            <div className="flex items-center bg-gray-800 px-2 py-1 rounded">
+                              <span className="text-white font-mono text-xs">{product.credentials.username}</span>
+                              <button 
+                                className="ml-2 text-xs text-gray-400 hover:text-white"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(product.credentials?.username || '');
+                                  toast({
+                                    title: "Copied!",
+                                    description: "Username copied to clipboard"
+                                  })
+                                }}
+                                title="Copy to clipboard"
+                              >
+                                <i className="fas fa-copy"></i>
+                              </button>
+                            </div>
                           </div>
                         )}
                         {product.credentials.password && (
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center bg-gray-900/50 rounded p-2">
                             <span className="text-gray-400 text-xs">Password:</span>
-                            <span className="text-white font-mono text-xs">{product.credentials.password}</span>
+                            <div className="flex items-center bg-gray-800 px-2 py-1 rounded">
+                              <span className="text-white font-mono text-xs">{product.credentials.password}</span>
+                              <button 
+                                className="ml-2 text-xs text-gray-400 hover:text-white"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(product.credentials?.password || '');
+                                  toast({
+                                    title: "Copied!",
+                                    description: "Password copied to clipboard"
+                                  })
+                                }}
+                                title="Copy to clipboard"
+                              >
+                                <i className="fas fa-copy"></i>
+                              </button>
+                            </div>
                           </div>
                         )}
                         {product.credentials.license && (
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center bg-gray-900/50 rounded p-2">
                             <span className="text-gray-400 text-xs">License Key:</span>
-                            <span className="text-white font-mono text-xs">{product.credentials.license}</span>
+                            <div className="flex items-center bg-gray-800 px-2 py-1 rounded">
+                              <span className="text-white font-mono text-xs">{product.credentials.license}</span>
+                              <button 
+                                className="ml-2 text-xs text-gray-400 hover:text-white"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(product.credentials?.license || '');
+                                  toast({
+                                    title: "Copied!",
+                                    description: "License key copied to clipboard"
+                                  })
+                                }}
+                                title="Copy to clipboard"
+                              >
+                                <i className="fas fa-copy"></i>
+                              </button>
+                            </div>
                           </div>
                         )}
                         {product.credentials.instructions && (
-                          <div className="mt-2">
-                            <span className="text-gray-400 text-xs">Instructions:</span>
-                            <p className="text-white text-xs mt-1">{product.credentials.instructions}</p>
+                          <div className="mt-3 bg-gray-900/50 p-2 rounded">
+                            <div className="flex items-center mb-1">
+                              <i className="fas fa-info-circle text-accent-blue mr-1"></i>
+                              <span className="text-gray-400 text-xs font-medium">Instructions:</span>
+                            </div>
+                            <p className="text-white text-xs mt-1 whitespace-pre-wrap">{product.credentials.instructions}</p>
                           </div>
                         )}
                       </div>

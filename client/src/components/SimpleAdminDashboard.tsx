@@ -234,21 +234,50 @@ export function SimpleAdminDashboard() {
   const updateBalanceMutation = useMutation({
     mutationFn: async (data: typeof balanceForm) => {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        throw new Error('Admin authentication required. Please login again.');
+      }
+      
+      if (!data.telegramId.trim()) {
+        throw new Error('Telegram ID is required');
+      }
+      
+      // Ensure we have a valid number for the balance
+      const balance = parseFloat(data.newBalance);
+      if (isNaN(balance)) {
+        throw new Error('Balance must be a valid number');
+      }
+      
+      console.log('Updating balance:', {
+        telegramId: data.telegramId,
+        balance,
+        reason: data.reason
+      });
+      
       return await apiRequest('PUT', `/api/admin/users/telegram/${data.telegramId}/balance`, {
-        balance: parseFloat(data.newBalance),
+        balance: balance,
         reason: data.reason
       }, {
         'Authorization': `Bearer ${token}`
       });
     },
-    onSuccess: () => {
-      toast({ title: 'User balance updated successfully!' });
-      setShowEditBalance(false);
-      setBalanceForm({ telegramId: '', newBalance: '', reason: '' });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+    onSuccess: (response) => {
+      if (response.success) {
+        toast({ title: 'User balance updated successfully!' });
+        setShowEditBalance(false);
+        setBalanceForm({ telegramId: '', newBalance: '', reason: '' });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+      } else {
+        toast({ 
+          title: 'Error updating balance', 
+          description: response.message || 'Failed to update balance',
+          variant: 'destructive' 
+        });
+      }
     },
     onError: (error: any) => {
+      console.error('Balance update error:', error);
       toast({ 
         title: 'Error updating balance', 
         description: error.message || 'Failed to update balance',
@@ -309,23 +338,32 @@ export function SimpleAdminDashboard() {
   const sendProductMutation = useMutation({
     mutationFn: async (data: typeof sendProductForm) => {
       const token = localStorage.getItem('admin_token');
-      
-      // First, get the user by telegram ID to get the userId
-      console.log('🔍 Looking up user by telegram ID:', data.telegramId);
-      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${data.telegramId}`, undefined, {
-        'Authorization': `Bearer ${token}`
-      });
-      
-      if (!userResponse.success || !userResponse.user) {
-        throw new Error('User not found');
+      if (!token) {
+        throw new Error('Admin authentication required. Please login again.');
       }
       
-      const userId = userResponse.user.id;
-      console.log('✅ Found user ID:', userId);
+      // Validate all required fields at once
+      const missingFields = [];
+      if (!data.telegramId.trim()) missingFields.push('Telegram ID');
+      if (!data.productId.trim()) missingFields.push('Product');
+      if (!data.username.trim()) missingFields.push('Username');
+      if (!data.password.trim()) missingFields.push('Password');
       
-      // Now send the product with the correct userId
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+      
+      console.log('Sending product with data:', {
+        telegramId: data.telegramId,
+        productId: data.productId,
+        username: data.username,
+        password: '********',
+        instructions: data.instructions
+      });
+      
+      // Send the product directly with telegramId
       return await apiRequest('POST', '/api/admin/send-product', {
-        userId: userId,
+        telegramId: data.telegramId,
         productId: data.productId,
         username: data.username,
         password: data.password,
@@ -334,19 +372,29 @@ export function SimpleAdminDashboard() {
         'Authorization': `Bearer ${token}`
       });
     },
-    onSuccess: () => {
-      toast({ title: 'Product sent successfully!' });
-      setShowSendProduct(false);
-      setSendProductForm({
-        telegramId: '',
-        productId: '',
-        username: '',
-        password: '',
-        instructions: ''
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sent-product-logs'] });
+    onSuccess: (response) => {
+      if (response.success) {
+        toast({ title: 'Product sent successfully!' });
+        setShowSendProduct(false);
+        setSendProductForm({
+          telegramId: '',
+          productId: '',
+          username: '',
+          password: '',
+          instructions: ''
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/sent-product-logs'] });
+      } else {
+        // Handle successful request but with error in response
+        toast({ 
+          title: 'Error sending product', 
+          description: response.message || 'Failed to send product',
+          variant: 'destructive' 
+        });
+      }
     },
     onError: (error: any) => {
+      console.error('Send product error:', error);
       toast({ 
         title: 'Error sending product', 
         description: error.message || 'Failed to send product',
@@ -358,21 +406,44 @@ export function SimpleAdminDashboard() {
   // Fetch User Balance Mutation
   const fetchUserBalanceMutation = useMutation({
     mutationFn: async (telegramId: string) => {
+      if (!telegramId) {
+        throw new Error('Telegram ID is required');
+      }
+      
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        throw new Error('Admin authentication required');
+      }
+      
       const url = `/api/admin/users/telegram/${telegramId}`;
       console.log('🔍 Fetching user balance for telegram ID:', telegramId);
-      console.log('� Request URL:', url);
-      console.log('�🔐 Admin token:', token ? `${token.substring(0, 20)}...` : 'missing');
+      console.log('🔍 Request URL:', url);
+      console.log('🔐 Admin token:', token ? `${token.substring(0, 20)}...` : 'missing');
       
       const response = await apiRequest('GET', url, undefined, {
         'Authorization': `Bearer ${token}`
       });
+      
       console.log('✅ User balance response:', response);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch user');
+      }
+      
+      if (!response.user) {
+        throw new Error('User not found with this Telegram ID');
+      }
+      
       return response.user;
     },
     onSuccess: (user) => {
       console.log('✅ User balance fetched successfully:', user);
-      setUserBalanceForm(prev => ({ ...prev, fetchedBalance: user.balance }));
+      setUserBalanceForm(prev => ({ 
+        ...prev, 
+        fetchedBalance: user.balance || 0,
+        addAmount: '',
+        removeAmount: ''
+      }));
       setShowFetchBalance(false);
       setShowUserBalance(true);
       toast({ title: 'User balance fetched successfully!' });
@@ -389,35 +460,72 @@ export function SimpleAdminDashboard() {
 
   // Add Balance Mutation
   const addBalanceMutation = useMutation({
-    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: string | number }) => {
       const token = localStorage.getItem('admin_token');
-      console.log('💰 Adding balance:', { telegramId, amount });
+      if (!token) {
+        throw new Error('Admin authentication required. Please login again.');
+      }
       
-      // First get current balance
-      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
-        'Authorization': `Bearer ${token}`
-      });
+      if (!telegramId.trim()) {
+        throw new Error('Telegram ID is required');
+      }
       
-      const currentBalance = userResponse.user.balance || 0;
-      const newBalance = currentBalance + amount;
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
       
-      return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
-        balance: newBalance,
-        reason: `Added $${amount} to balance`
-      }, {
-        'Authorization': `Bearer ${token}`
-      });
+      if (isNaN(numAmount) || numAmount <= 0) {
+        throw new Error('Invalid amount: must be a positive number');
+      }
+      
+      console.log('💰 Adding balance:', { telegramId, amount: numAmount });
+      
+      try {
+        // First get current balance
+        const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
+          'Authorization': `Bearer ${token}`
+        });
+        
+        if (!userResponse.success || !userResponse.user) {
+          throw new Error('Failed to fetch user balance');
+        }
+        
+        const currentBalance = userResponse.user.balance || 0;
+        const newBalance = currentBalance + numAmount;
+        
+        return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
+          balance: newBalance,
+          reason: `Admin added $${numAmount} to balance`
+        }, {
+          'Authorization': `Bearer ${token}`
+        });
+      } catch (error: any) {
+        console.error('Error in add balance flow:', error);
+        throw new Error(error.message || 'Failed to add balance');
+      }
     },
-    onSuccess: () => {
-      toast({ title: 'Balance added successfully!' });
-      setUserBalanceForm(prev => ({ 
-        ...prev, 
-        addAmount: '',
-        fetchedBalance: prev.fetchedBalance ? prev.fetchedBalance + parseFloat(prev.addAmount || '0') : null
-      }));
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        const numAmount = typeof variables.amount === 'string' ? parseFloat(variables.amount) : variables.amount;
+        toast({ title: `Balance added successfully! +$${numAmount}` });
+        setUserBalanceForm(prev => ({ 
+          ...prev, 
+          addAmount: ''
+        }));
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+        
+        // Refetch user balance to ensure accuracy
+        if (userBalanceForm.telegramId) {
+          fetchUserBalanceMutation.mutate(userBalanceForm.telegramId);
+        }
+      } else {
+        toast({ 
+          title: 'Error adding balance', 
+          description: data.message || 'Failed to add balance',
+          variant: 'destructive' 
+        });
+      }
     },
     onError: (error: any) => {
+      console.error('Error adding balance:', error);
       toast({ 
         title: 'Error adding balance', 
         description: error.message || 'Failed to add balance',
@@ -428,35 +536,72 @@ export function SimpleAdminDashboard() {
 
   // Remove Balance Mutation
   const removeBalanceMutation = useMutation({
-    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: number }) => {
+    mutationFn: async ({ telegramId, amount }: { telegramId: string, amount: string | number }) => {
       const token = localStorage.getItem('admin_token');
-      console.log('💸 Removing balance:', { telegramId, amount });
+      if (!token) {
+        throw new Error('Admin authentication required. Please login again.');
+      }
       
-      // First get current balance
-      const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
-        'Authorization': `Bearer ${token}`
-      });
+      if (!telegramId.trim()) {
+        throw new Error('Telegram ID is required');
+      }
       
-      const currentBalance = userResponse.user.balance || 0;
-      const newBalance = Math.max(0, currentBalance - amount); // Don't go below 0
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
       
-      return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
-        balance: newBalance,
-        reason: `Removed $${amount} from balance`
-      }, {
-        'Authorization': `Bearer ${token}`
-      });
+      if (isNaN(numAmount) || numAmount <= 0) {
+        throw new Error('Invalid amount: must be a positive number');
+      }
+      
+      console.log('💸 Removing balance:', { telegramId, amount: numAmount });
+      
+      try {
+        // First get current balance
+        const userResponse = await apiRequest('GET', `/api/admin/users/telegram/${telegramId}`, undefined, {
+          'Authorization': `Bearer ${token}`
+        });
+        
+        if (!userResponse.success || !userResponse.user) {
+          throw new Error('Failed to fetch user balance');
+        }
+        
+        const currentBalance = userResponse.user.balance || 0;
+        const newBalance = Math.max(0, currentBalance - numAmount); // Don't go below 0
+        
+        return await apiRequest('PUT', `/api/admin/users/telegram/${telegramId}/balance`, {
+          balance: newBalance,
+          reason: `Admin removed $${numAmount} from balance`
+        }, {
+          'Authorization': `Bearer ${token}`
+        });
+      } catch (error: any) {
+        console.error('Error in remove balance flow:', error);
+        throw new Error(error.message || 'Failed to remove balance');
+      }
     },
-    onSuccess: () => {
-      toast({ title: 'Balance removed successfully!' });
-      setUserBalanceForm(prev => ({ 
-        ...prev, 
-        removeAmount: '',
-        fetchedBalance: prev.fetchedBalance ? Math.max(0, prev.fetchedBalance - parseFloat(prev.removeAmount || '0')) : null
-      }));
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        const numAmount = typeof variables.amount === 'string' ? parseFloat(variables.amount) : variables.amount;
+        toast({ title: `Balance removed successfully! -$${numAmount}` });
+        setUserBalanceForm(prev => ({ 
+          ...prev, 
+          removeAmount: ''
+        }));
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/balance-logs'] });
+        
+        // Refetch user balance to ensure accuracy
+        if (userBalanceForm.telegramId) {
+          fetchUserBalanceMutation.mutate(userBalanceForm.telegramId);
+        }
+      } else {
+        toast({ 
+          title: 'Error removing balance', 
+          description: data.message || 'Failed to remove balance',
+          variant: 'destructive' 
+        });
+      }
     },
     onError: (error: any) => {
+      console.error('Error removing balance:', error);
       toast({ 
         title: 'Error removing balance', 
         description: error.message || 'Failed to remove balance',
@@ -804,58 +949,62 @@ export function SimpleAdminDashboard() {
                   <p className="text-gray-400">No balance change logs</p>
                 </div>
               ) : (
-                balanceLogs.map((log: any) => (
-                  <div key={log._id} className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-l-purple-600">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-white font-medium">Balance Change</h3>
-                          <Badge className={`text-xs ${
-                            log.changeType === 'admin_direct' 
-                              ? 'bg-purple-500 text-white'
-                              : log.changeType === 'transaction_approval'
-                              ? 'bg-green-500 text-white' 
-                              : log.changeType === 'transaction_denial'
-                              ? 'bg-red-500 text-white'
-                              : log.changeType === 'admin_add'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-orange-500 text-white'
-                          }`}>
-                            {log.changeType.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        <p className="text-gray-400 text-sm mb-1">{log.reason}</p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-gray-400">User: {log.userId}</span>
-                          <span className="text-gray-400">
-                            ${log.previousBalance} → ${log.newBalance}
-                          </span>
-                          <span className={`font-bold ${
-                            log.changeAmount > 0 ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {log.changeAmount > 0 ? '+' : ''}${log.changeAmount}
-                          </span>
-                        </div>
-                        {log.adminEmail && (
-                          <p className="text-gray-500 text-xs mt-1">
-                            Admin: {log.adminEmail}
+                // Filter logs to only show manual admin changes
+                balanceLogs
+                  .filter((log: any) => 
+                    ['admin_direct', 'admin_add', 'admin_remove'].includes(log.changeType))
+                  .map((log: any) => (
+                    <div key={log._id} className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-l-purple-600">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-white font-medium">Balance Change</h3>
+                            <Badge className={`text-xs ${
+                              log.changeType === 'admin_direct' 
+                                ? 'bg-purple-500 text-white'
+                                : log.changeType === 'admin_add'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-orange-500 text-white'
+                            }`}>
+                              {log.changeType === 'admin_direct' 
+                                ? 'Direct Edit'
+                                : log.changeType === 'admin_add'
+                                ? 'Added Funds'
+                                : 'Removed Funds'}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-400 text-sm mb-1">{log.reason}</p>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-gray-400">User: {log.userId}</span>
+                            <span className="text-gray-400">
+                              ${log.previousBalance} → ${log.newBalance}
+                            </span>
+                            <span className={`font-bold ${
+                              log.changeAmount > 0 ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {log.changeAmount > 0 ? '+' : ''}${log.changeAmount}
+                            </span>
+                          </div>
+                          {log.adminEmail && (
+                            <p className="text-gray-500 text-xs mt-1">
+                              Admin: {log.adminEmail}
+                            </p>
+                          )}
+                          <p className="text-gray-500 text-xs">
+                            {new Date(log.createdAt).toLocaleString()}
                           </p>
-                        )}
-                        <p className="text-gray-500 text-xs">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end ml-4">
-                        <div className={`w-3 h-3 rounded-full ${
-                          log.changeAmount > 0 ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
-                        <p className="text-gray-500 text-xs mt-1">
-                          {log.changeAmount > 0 ? 'Credit' : 'Debit'}
-                        </p>
+                        </div>
+                        <div className="flex flex-col items-end ml-4">
+                          <div className={`w-3 h-3 rounded-full ${
+                            log.changeAmount > 0 ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          <p className="text-gray-500 text-xs mt-1">
+                            {log.changeAmount > 0 ? 'Credit' : 'Debit'}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </CardContent>
@@ -1473,9 +1622,9 @@ export function SimpleAdminDashboard() {
                   placeholder="Amount to add"
                 />
                 <Button
-                  onClick={() =>                  addBalanceMutation.mutate({ 
+                  onClick={() => addBalanceMutation.mutate({ 
                     telegramId: userBalanceForm.telegramId, 
-                    amount: parseFloat(userBalanceForm.addAmount) 
+                    amount: userBalanceForm.addAmount 
                   })}
                   disabled={addBalanceMutation.isPending || !userBalanceForm.addAmount}
                   className="w-full bg-green-500 hover:bg-green-600"
@@ -1494,9 +1643,9 @@ export function SimpleAdminDashboard() {
                   placeholder="Amount to remove"
                 />
                 <Button
-                  onClick={() =>                  removeBalanceMutation.mutate({ 
+                  onClick={() => removeBalanceMutation.mutate({ 
                     telegramId: userBalanceForm.telegramId, 
-                    amount: parseFloat(userBalanceForm.removeAmount) 
+                    amount: userBalanceForm.removeAmount 
                   })}
                   disabled={removeBalanceMutation.isPending || !userBalanceForm.removeAmount}
                   className="w-full bg-red-500 hover:bg-red-600"

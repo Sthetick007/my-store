@@ -4,6 +4,7 @@ import { insertProductSchema } from "@shared/schema";
 import { z } from "zod";
 import { isAdminAuthenticated } from "../adminAuth";
 import Product from "../models/Product";
+import { SentProduct } from "../models/SentProduct";
 
 const router = Router();
 
@@ -59,10 +60,13 @@ router.get('/users/telegram/:telegramId', isAdminAuthenticated, async (req: any,
 router.put('/users/:id/balance', isAdminAuthenticated, async (req: any, res) => {
   try {
     const userId = req.params.id;
-    const { balance, reason } = req.body;
+    const { balance: rawBalance, reason } = req.body;
     
-    if (typeof balance !== 'number') {
-      return res.status(400).json({ message: "Balance must be a number" });
+    // Convert to number if it's a string
+    const balance = typeof rawBalance === 'string' ? parseFloat(rawBalance) : rawBalance;
+    
+    if (typeof balance !== 'number' || isNaN(balance)) {
+      return res.status(400).json({ success: false, message: "Balance must be a valid number" });
     }
     
     const user = await storage.updateUserBalanceWithLogging(
@@ -166,6 +170,68 @@ router.post('/users/:id/remove-balance', isAdminAuthenticated, async (req: any, 
   } catch (error) {
     console.error("Error removing balance:", error);
     res.status(500).json({ message: "Failed to remove balance" });
+  }
+});
+
+// Update user balance by Telegram ID
+router.put('/users/telegram/:telegramId/balance', isAdminAuthenticated, async (req: any, res) => {
+  try {
+    const telegramId = req.params.telegramId;
+    const { balance: rawBalance, reason } = req.body;
+    
+    console.log(`💰 Admin updating balance for user ${telegramId}`, { 
+      rawBalance, 
+      reason, 
+      type: typeof rawBalance 
+    });
+    
+    // Convert to number if it's a string
+    const balance = typeof rawBalance === 'string' ? parseFloat(rawBalance) : rawBalance;
+    
+    if (typeof balance !== 'number' || isNaN(balance)) {
+      console.log('❌ Invalid balance value:', rawBalance);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Balance must be a valid number" 
+      });
+    }
+    
+    // First get the user by telegramId
+    const user = await storage.getUserByTelegramId(telegramId);
+    if (!user) {
+      console.log('❌ User not found with telegram ID:', telegramId);
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found with this Telegram ID" 
+      });
+    }
+    
+    const updatedUser = await storage.updateUserBalanceWithLogging(
+      user.id, 
+      balance,
+      reason || 'Admin direct balance update',
+      'admin_direct',
+      req.admin?.id,
+      req.admin?.email,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
+    
+    console.log(`✅ Admin updated user ${telegramId} balance to ${balance}. Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: "User balance updated successfully", 
+      user: updatedUser 
+    });
+  } catch (error: any) {
+    console.error("Error updating user balance by telegram ID:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Failed to update user balance"
+    });
   }
 });
 
@@ -354,15 +420,29 @@ router.post('/transactions/:id/deny', isAdminAuthenticated, async (req: any, res
 router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
   try {
     console.log('📦 Admin sending product with data:', req.body);
-    const { telegramId, productId, username, password, instructions } = req.body;
     
-    // Validate required fields
-    if (!telegramId || !productId || !username || !password) {
-      console.log('❌ Missing required fields:', { telegramId, productId, username, password });
+    // Use explicit field extraction to avoid undefined values
+    const telegramId = req.body.telegramId || '';
+    const productId = req.body.productId || '';
+    const username = req.body.username || '';
+    const password = req.body.password || '';
+    const instructions = req.body.instructions || '';
+    
+    console.log('📦 Extracted fields:', { telegramId, productId, username, password: password ? '********' : '' });
+    
+    // Validate each required field with detailed error messages
+    const missingFields = [];
+    if (!telegramId) missingFields.push('telegramId');
+    if (!productId) missingFields.push('productId');
+    if (!username) missingFields.push('username');
+    if (!password) missingFields.push('password');
+    
+    if (missingFields.length > 0) {
+      console.log('❌ Missing required fields:', missingFields);
       return res.status(400).json({ 
-        message: "Missing required fields", 
-        required: ["telegramId", "productId", "username", "password"],
-        received: { telegramId, productId, username, password }
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`, 
+        missingFields: missingFields
       });
     }
     
@@ -370,7 +450,7 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     const user = await storage.getUserByTelegramId(telegramId);
     if (!user) {
       console.log('❌ User not found with telegram ID:', telegramId);
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found with this Telegram ID" });
     }
     
     // Get product details
@@ -378,12 +458,27 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     const product = await Product.findById(productId);
     if (!product) {
       console.log('❌ Product not found:', productId);
-      return res.status(404).json({ message: "Product not found" });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
     
     console.log('✅ Product found:', product.name);
     
-    // Log the sent product
+    // Create a new SentProduct record that will appear in the user's purchased items
+    const sentProduct = new SentProduct({
+      userId: user.id,
+      productId,
+      productName: product.name,
+      username,
+      password,
+      instructions: instructions || '',
+      sentAt: new Date(),
+      isActive: true
+    });
+    
+    await sentProduct.save();
+    console.log('✅ Created SentProduct record for user to view');
+    
+    // Log the sent product for admin tracking
     await storage.logSentProduct({
       userId: user.id,
       userTelegramId: telegramId,
@@ -402,6 +497,7 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     console.log('✅ Product sent successfully to user:', user.id);
     
     res.json({ 
+      success: true,
       message: "Product sent successfully",
       sentProduct: {
         userId: user.id,
@@ -412,7 +508,7 @@ router.post('/send-product', isAdminAuthenticated, async (req: any, res) => {
     });
   } catch (error) {
     console.error("❌ Error sending product:", error);
-    res.status(500).json({ message: "Failed to send product" });
+    res.status(500).json({ success: false, message: "Failed to send product" });
   }
 });
 
