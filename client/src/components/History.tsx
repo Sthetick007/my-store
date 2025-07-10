@@ -67,13 +67,13 @@ export function History({ limit }: HistoryProps = {}) {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
-        return 'fas fa-plus';
+        return 'fas fa-wallet';
       case 'withdrawal':
-        return 'fas fa-minus';
+        return 'fas fa-arrow-up';
       case 'purchase':
-        return 'fas fa-shopping-bag';
+        return 'fas fa-shopping-cart';
       case 'refund':
-        return 'fas fa-undo';
+        return 'fas fa-undo-alt';
       default:
         return 'fas fa-exchange-alt';
     }
@@ -83,12 +83,12 @@ export function History({ limit }: HistoryProps = {}) {
     switch (type) {
       case 'deposit':
       case 'refund':
-        return 'text-green-500 bg-green-500/20';
+        return 'text-white bg-blue-600/80';
       case 'withdrawal':
       case 'purchase':
-        return 'text-red-500 bg-red-500/20';
+        return 'text-white bg-gray-600/80';
       default:
-        return 'text-gray-400 bg-gray-400/20';
+        return 'text-white bg-gray-500/80';
     }
   };
 

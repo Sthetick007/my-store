@@ -134,7 +134,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
               <i className="fas fa-shopping-cart"></i>
               <span>Shopping Cart</span>
               {totalItems > 0 && (
-                <Badge className="bg-accent-blue text-white">{totalItems}</Badge>
+                <Badge className="bg-blue-600 text-white">{totalItems}</Badge>
               )}
             </DialogTitle>
           </DialogHeader>
@@ -170,19 +170,28 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
                               {item.product.image_url ? (
                                 <img
                                   src={item.product.image_url}
                                   alt={item.product.name}
-                                  className="w-full h-full object-cover rounded-lg"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
                                 />
-                              ) : (
-                                <i className="fas fa-image text-gray-400"></i>
-                              )}
+                              ) : null}
+                              <div 
+                                className="w-full h-full flex items-center justify-center" 
+                                style={{ display: item.product.image_url ? 'none' : 'flex' }}
+                              >
+                                <i className="fas fa-box text-gray-400 text-lg"></i>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <p className="text-white font-medium text-sm">{item.product.name}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-medium text-sm truncate">{item.product.name}</p>
                               <p className="text-gray-400 text-xs">${item.product.price} each</p>
                             </div>
                           </div>
@@ -193,7 +202,7 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                                 variant="outline"
                                 onClick={() => handleQuantityChange(item._id, -1)}
                                 disabled={updateQuantityMutation.isPending}
-                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-accent-blue"
+                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600"
                               >
                                 <i className="fas fa-minus text-xs"></i>
                               </Button>
@@ -205,12 +214,12 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                                 variant="outline"
                                 onClick={() => handleQuantityChange(item._id, 1)}
                                 disabled={updateQuantityMutation.isPending}
-                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-accent-blue"
+                                className="w-8 h-8 p-0 border-gray-600 text-gray-300 hover:border-blue-600"
                               >
                                 <i className="fas fa-plus text-xs"></i>
                               </Button>
                             </div>
-                            <p className="text-accent-blue font-bold text-sm min-w-[4rem] text-right">
+                            <p className="text-blue-600 font-bold text-sm min-w-[4rem] text-right">
                               ${(parseFloat(item.product.price) * item.quantity).toFixed(2)}
                             </p>
                           </div>
@@ -224,13 +233,13 @@ export function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
 
                 <div className="flex items-center justify-between text-lg font-bold">
                   <span className="text-white">Total:</span>
-                  <span className="text-accent-blue">${totalPrice.toFixed(2)}</span>
+                  <span className="text-blue-600">${totalPrice.toFixed(2)}</span>
                 </div>
 
                 <Button
                   onClick={handleCheckout}
                   disabled={isProcessing || checkoutMutation.isPending}
-                  className="w-full bg-accent-blue hover:bg-accent-blue-dark"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                 >
                   {isProcessing || checkoutMutation.isPending ? (
                     <>

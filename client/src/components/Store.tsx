@@ -122,8 +122,8 @@ export function Store() {
     console.log('🎨 Rendering product card:', product.name, 'ID:', product._id);
     
     return (
-      <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 overflow-hidden hover:border-accent-blue transition-all duration-300 group">
-        <div className="aspect-square bg-gray-800 relative overflow-hidden">
+      <Card className="bg-dark-card/50 backdrop-blur-sm border-gray-700 overflow-hidden hover:border-blue-600 transition-all duration-300 group">
+        <div className="w-full h-48 bg-gray-800 relative overflow-hidden">
           {product.image_url ? (
             <img
               src={product.image_url}
@@ -141,25 +141,30 @@ export function Store() {
             className="w-full h-full flex items-center justify-center" 
             style={{ display: product.image_url ? 'none' : 'flex' }}
           >
-            <i className="fas fa-box text-gray-500 text-3xl"></i>
+            <i className="fas fa-box text-gray-500 text-4xl"></i>
           </div>
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-semibold text-white text-sm mb-1 truncate">{product.name}</h3>
-          <p className="text-xs text-gray-400 mb-2 line-clamp-2">{product.description}</p>
+        <CardContent className="p-4">
+          <div className="mb-3">
+            <h3 className="font-semibold text-white text-lg mb-2">{product.name}</h3>
+            <p className="text-sm text-gray-400 line-clamp-3 leading-relaxed">{product.description}</p>
+          </div>
           <div className="flex items-center justify-between">
-            <span className="text-accent-blue font-bold text-sm">${product.price}</span>
+            <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg border border-white/20 shadow-lg">
+              <span className="text-white font-bold text-lg drop-shadow-sm">${product.price}</span>
+            </div>
             <Button
               size="sm"
               onClick={() => handleAddToCart(product._id!)}
               disabled={addToCartMutation.isPending}
-              className="w-8 h-8 bg-accent-blue hover:bg-accent-blue-dark rounded-full p-0"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
             >
               {addToCartMutation.isPending ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               ) : (
-                <i className="fas fa-plus text-white text-xs"></i>
+                <i className="fas fa-cart-plus text-white mr-2"></i>
               )}
+              {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
             </Button>
           </div>
         </CardContent>
@@ -177,7 +182,7 @@ export function Store() {
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-dark-card/50 backdrop-blur-sm border-gray-700 rounded-xl pl-12 text-white placeholder-gray-400 focus:ring-2 focus:ring-accent-blue"
+            className="w-full bg-dark-card/50 backdrop-blur-sm border-gray-700 rounded-xl pl-12 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-600"
           />
           <i className="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
         </div>
@@ -187,16 +192,19 @@ export function Store() {
       <div className="px-4 max-w-4xl mx-auto">
         <h2 className="text-xl font-bold text-white mb-4">Products</h2>
         {productsLoading ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
               <Card key={i} className="bg-dark-card/50 backdrop-blur-sm border-gray-700">
-                <Skeleton className="aspect-square w-full" />
-                <CardContent className="p-3">
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-3 w-3/4 mb-2" />
+                <Skeleton className="w-full h-48" />
+                <CardContent className="p-4">
+                  <Skeleton className="h-5 w-full mb-2" />
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2 mb-3" />
                   <div className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg border border-white/20">
+                      <Skeleton className="h-5 w-16 bg-gray-600" />
+                    </div>
+                    <Skeleton className="h-9 w-24" />
                   </div>
                 </CardContent>
               </Card>
@@ -209,7 +217,7 @@ export function Store() {
             <p className="text-gray-500 text-sm">Products will appear here when added by admin</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             {products?.map((product) => (
               <ProductCard key={product._id} product={product} />
             ))}
